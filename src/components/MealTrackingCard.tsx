@@ -351,7 +351,7 @@ OVERALL_SCORE: [score]`;
   
   // Navigate to detailed analysis page
   const goToDetailedAnalysis = () => {
-    router.push('/nutrition');
+    router.push('/meal');
   };
 
   return (
