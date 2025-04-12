@@ -69,7 +69,7 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
     }
   };
 
-  // Check if the daily log has been completed for today
+
   useEffect(() => {
     const checkDailyLogStatus = async () => {
       setIsLoading(true);
