@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
 import NavBar from '@/components/NavBar';
-import { useHealth } from '@/context/HealthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -14,6 +13,7 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useHealthStore } from '@/store/healthStore';
 
 const formSchema = z.object({
   goal: z.enum(['Lose weight', 'Improve sleep', 'Gain muscle', 'Manage stress'], {
@@ -31,7 +31,7 @@ const formSchema = z.object({
 });
 
 const GoalSetup = () => {
-  const { setHealthGoal, setUserProfile, setHealthPlan, completeOnboarding } = useHealth();
+  const { setHealthGoal, setUserProfile, setHealthPlan, completeOnboarding } = useHealthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -128,9 +128,6 @@ const GoalSetup = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="bg-white p-4 rounded-b-3xl shadow-md">
-        <NavBar />
-      </div>
       
       <div className="container mx-auto px-4 py-6">
         <Card className="w-full max-w-2xl mx-auto">

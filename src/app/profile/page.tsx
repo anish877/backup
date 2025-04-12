@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Activity, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useHealthStore, getHealthStats, formatActivityLevel } from '@/store/healthStore';
 
 const formSchema = z.object({
   age: z.coerce.number().min(1, "Age is required"),
@@ -26,17 +27,29 @@ const formSchema = z.object({
 });
 
 const UserProfile = () => {
-  const { healthGoal, userProfile, setUserProfile, isOnboarded, dailyLogs } = useHealth();
+  const { healthGoal, userProfile, setUserProfile, updateUserProfile, isOnboarded, dailyLogs, resetHealthData } = useHealthStore();
   const router = useRouter();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
 
   // Redirect to goal setup if not onboarded
-  React.useEffect(() => {
-    if (isOnboarded) {
+  useEffect(() => {
+    if (!isOnboarded) {
       router.push('/goal');
     }
   }, [isOnboarded, router]);
+
+  // Reset form when toggling edit mode
+  useEffect(() => {
+    if (isEditing) {
+      form.reset({
+        age: userProfile.age || 0,
+        weight: userProfile.weight || 0,
+        gender: userProfile.gender || undefined,
+        activityLevel: userProfile.activityLevel || undefined,
+      });
+    }
+  }, [isEditing]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,9 +62,8 @@ const UserProfile = () => {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Update user profile
-    setUserProfile({
-      ...userProfile,
+    // Update user profile using the updateUserProfile action
+    updateUserProfile({
       age: Number(values.age),
       weight: Number(values.weight),
       gender: values.gender,
@@ -66,35 +78,44 @@ const UserProfile = () => {
     setIsEditing(false);
   };
 
-  const calculateStats = () => {
-    if (dailyLogs.length === 0) {
-      return {
-        avgSleep: "-",
-        avgWater: "-",
-        avgMood: "-",
-        totalExerciseMinutes: "-",
-        logsCount: 0
-      };
-    }
+  // Get the health statistics
+  const stats = getHealthStats(dailyLogs);
 
-    const totalSleep = dailyLogs.reduce((sum, log) => sum + log.sleepHours, 0);
-    const totalWater = dailyLogs.reduce((sum, log) => sum + log.waterConsumed, 0);
-    const totalMood = dailyLogs.reduce((sum, log) => sum + log.mood, 0);
-    const totalExercise = dailyLogs.reduce((sum, log) => sum + log.exerciseDuration, 0);
+  const handleDeleteAccount = () => {
+    // First show a confirmation toast or dialog (not implemented here)
+    toast({
+      title: "Warning",
+      description: "Are you sure you want to delete your account? This action cannot be undone.",
+    });
     
-    return {
-      avgSleep: (totalSleep / dailyLogs.length).toFixed(1),
-      avgWater: (totalWater / dailyLogs.length).toFixed(1),
-      avgMood: (totalMood / dailyLogs.length).toFixed(1),
-      totalExerciseMinutes: totalExercise.toString(),
-      logsCount: dailyLogs.length
-    };
+    // In a real application, you'd add a confirmation step
+    // If confirmed, reset all data
+    // resetHealthData();
+    // router.push('/');
   };
 
-  const stats = calculateStats();
-
-  const formatActivityLevel = (level: string) => {
-    return level.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  const handleExportData = () => {
+    // Create a downloadable JSON file with the health data
+    const exportData = {
+      profile: userProfile,
+      healthGoal,
+      logs: dailyLogs
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `health-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Data Exported",
+      description: "Your health data has been exported successfully.",
+    });
   };
 
   if (!isOnboarded) {
@@ -114,7 +135,7 @@ const UserProfile = () => {
               <CardHeader className="text-center pb-2">
                 <div className="flex justify-center mb-4">
                   <Avatar className="w-24 h-24">
-                    <AvatarImage src="/lovable-uploads/a6ceadf4-1747-4ad6-a0c6-d78ff8e109e3.png" />
+                    <AvatarImage src={userProfile.avatarUrl || "/lovable-uploads/a6ceadf4-1747-4ad6-a0c6-d78ff8e109e3.png"} />
                     <AvatarFallback className="bg-brandOrange text-3xl text-white">
                       {userProfile.gender === 'male' ? 'M' : userProfile.gender === 'female' ? 'F' : 'U'}
                     </AvatarFallback>
@@ -136,23 +157,23 @@ const UserProfile = () => {
                 <div className="space-y-3 text-left">
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Age:</span>
-                    <span className="font-medium">{userProfile.age}</span>
+                    <span className="font-medium">{userProfile.age || "Not set"}</span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Weight:</span>
-                    <span className="font-medium">{userProfile.weight} kg</span>
+                    <span className="font-medium">{userProfile.weight ? `${userProfile.weight} kg` : "Not set"}</span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Gender:</span>
-                    <span className="font-medium capitalize">{userProfile.gender}</span>
+                    <span className="font-medium capitalize">{userProfile.gender || "Not set"}</span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Activity Level:</span>
                     <span className="font-medium">
-                      {userProfile.activityLevel ? formatActivityLevel(userProfile.activityLevel) : "Not specified"}
+                      {userProfile.activityLevel ? formatActivityLevel(userProfile.activityLevel) : "Not set"}
                     </span>
                   </div>
                 </div>
@@ -324,7 +345,7 @@ const UserProfile = () => {
                       <Button 
                         variant="default" 
                         className="w-full"
-                        onClick={() => navigate('/goal')}
+                        onClick={() => router.push('/goal')}
                       >
                         Change Health Goal
                       </Button>
@@ -334,12 +355,7 @@ const UserProfile = () => {
                       <Button 
                         variant="outline" 
                         className="w-full"
-                        onClick={() => {
-                          toast({
-                            title: "Data Exported",
-                            description: "Your health data has been exported successfully.",
-                          });
-                        }}
+                        onClick={handleExportData}
                       >
                         Export My Health Data
                       </Button>
@@ -349,12 +365,7 @@ const UserProfile = () => {
                       <Button 
                         variant="outline" 
                         className="w-full text-red-500 border-red-500 hover:bg-red-50"
-                        onClick={() => {
-                          toast({
-                            title: "Warning",
-                            description: "This feature would delete your account data (not implemented).",
-                          });
-                        }}
+                        onClick={handleDeleteAccount}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete Account
