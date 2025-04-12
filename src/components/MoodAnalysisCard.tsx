@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
@@ -43,12 +44,58 @@ const MoodAnalysisCard = () => {
     "Focus": 75,
     "Optimism": 80
   });
+  const [recommendations, setRecommendations] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Prepare data for pie chart
   const pieData = [
     { name: 'Mood Score', value: moodScore, color: '#10b981' },
     { name: 'Remaining', value: 100 - moodScore, color: '#134E40' }
   ];
+
+  // Fetch the latest mood data on component mount
+  useEffect(() => {
+    fetchLatestMood();
+  }, []);
+
+  // Fetch the latest mood assessment
+  const fetchLatestMood = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(`http://localhost:3001/api/mood/latest`,{withCredentials:true});
+      const { data } = response.data;
+      
+      if (data) {
+        setMoodScore(data.finalScore);
+        setMoodCategories({
+          "Happiness": data.happiness,
+          "Energy": data.energy,
+          "Calm": data.calm,
+          "Focus": data.focus,
+          "Optimism": data.optimism
+        });
+        setRecommendations(data.dailyRecommndations);
+        
+        // Format date for display
+        const date = new Date(data.date);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        if (date.toDateString() === today.toDateString()) {
+          setLastAssessmentDate("Today");
+        } else if (date.toDateString() === yesterday.toDateString()) {
+          setLastAssessmentDate("Yesterday");
+        } else {
+          setLastAssessmentDate(date.toLocaleDateString());
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching latest mood:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Function to call Gemini API directly
   const callGeminiAPI = async (prompt: string): Promise<string> => {
@@ -197,9 +244,20 @@ Optimism: [score]`;
       // Call Gemini API directly
       const aiResponse = await callGeminiAPI(promptForAnalysis);
       
-      // Parse the response
-      //@ts-expect-error: no need here
+      // Parse the response for category scores
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
+      
+      // Parse the response for recommendations
+      const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=CATEGORY_SCORES)/s);
+      let parsedRecommendations: string[] = [];
+      
+      if (recommendationsMatch && recommendationsMatch[1]) {
+        parsedRecommendations = recommendationsMatch[1]
+          .trim()
+          .split('\n')
+          .map(r => r.trim())
+          .filter(r => r !== "");
+      }
       
       // Set category scores and calculate mood score as their average
       let categoryScores: {[key: string]: number} = {};
@@ -241,6 +299,13 @@ Optimism: [score]`;
       // Set the category scores
       setMoodCategories(categoryScores);
       
+      // Set recommendations
+      setRecommendations(parsedRecommendations.length ? parsedRecommendations : [
+        "Take 10 minutes to meditate or practice deep breathing",
+        "Go for a short walk outside in nature",
+        "Connect with a friend or loved one today"
+      ]);
+      
       // Calculate mood score as the average of category scores
       const totalScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0);
       const averageScore = Math.round(totalScore / Object.values(categoryScores).length);
@@ -249,18 +314,14 @@ Optimism: [score]`;
       setMoodScore(averageScore);
       setLastAssessmentDate("Today");
       
-      // Save the assessment data to localStorage for the detailed page
-      const newAssessmentData = {
-        date: new Date().toISOString(),
-        score: averageScore,
-        categories: categoryScores,
-        responses: userResponses,
-        questions: questions
-      };
-      
-      // Get existing data or initialize empty array
-      const existingData = JSON.parse(localStorage.getItem('moodAssessmentHistory') || '[]');
-      localStorage.setItem('moodAssessmentHistory', JSON.stringify([...existingData, newAssessmentData]));
+      // Save the mood assessment to the database
+      await saveMoodAssessment(
+        averageScore,
+        categoryScores,
+        userResponses,
+        questions,
+        parsedRecommendations
+      );
       
     } catch (error) {
       console.error("Error generating insights:", error);
@@ -282,6 +343,27 @@ Optimism: [score]`;
       setMoodScore(defaultAverage);
     } finally {
       setIsGeneratingInsights(false);
+    }
+  };
+
+  // Save mood assessment to the database
+  const saveMoodAssessment = async (
+    score: number,
+    categories: {[key: string]: number},
+    responses: Record<number, string>,
+    questions: string[],
+    recommendations: string[]
+  ) => {
+    try {
+      await axios.post(`http://localhost:3001/api/mood`, {
+        moodScore: score,
+        categories,
+        responses,
+        questions,
+        recommendations
+      },{withCredentials:true});
+    } catch (error) {
+      console.error("Error saving mood assessment:", error);
     }
   };
 
