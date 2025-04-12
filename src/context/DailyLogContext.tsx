@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { customToast } from '@/components/CustomToast';
 
 interface DailyLogContextType {
   isDailyLogCompleted: boolean;
@@ -42,19 +43,21 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
   const [showToast, setShowToast] = useState<boolean>(false);
   const Router = useRouter()
 
-  // Function to open daily log form (could trigger a modal or redirect)
+
   const openDailyLogForm = () => {
     Router.push('/log')
     setShowToast(false);
   };
 
-  // Function to submit daily log data
+
   const completeDailyLog = async (logData: DailyLogData) => {
     setIsLoading(true);
     try {
-      await axios.post('/api/daily-logs', logData);
+      await axios.post('/dailLog', logData, {
+        withCredentials: true
+      });
       setIsDailyLogCompleted(true);
-      toast.success('Daily log completed successfully!');
+      customToast.success('Daily log completed successfully!');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to complete daily log';
       setError(errorMessage);
@@ -76,11 +79,10 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
               withCredentials: true,
             }
           );
-        console.log(response)
-        setIsDailyLogCompleted(response.data.completed);
+        setIsDailyLogCompleted(response.data.success);
         
         // If daily log isn't completed, show the toast notification
-        if (!response.data.sucess && !showToast) {
+        if (!response.data.success && !showToast) {
           setShowToast(true);
           toast((t) => (
             <div>

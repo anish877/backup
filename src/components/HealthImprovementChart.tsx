@@ -23,7 +23,7 @@ const HealthImprovementChart = () => {
   const data = generateData();
 
   return (
-    <div className="bg-darkCard p-6 rounded-3xl">
+    <div className="bg-[#242424] p-6 rounded-3xl">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <div className="w-5 h-5 rounded bg-brandOrange mr-2"></div>
