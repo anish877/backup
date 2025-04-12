@@ -46,14 +46,14 @@ const Dashboard = () => {
         if (!last7Logs.some(log => log.date === date)) {
           last7Logs.unshift({ 
             date, 
-            mood: null,
-            sleepHours: null,
-            waterConsumed: null,
+            mood: 0,
+            sleepHours: 0,
+            waterConsumed: 0,
             meals: [],
             exercise: '',
-            exerciseDuration: null,
+            exerciseDuration: 0,
             symptoms: [],
-            stressLevel: null
+            stressLevel: 0
           });
         }
       }
