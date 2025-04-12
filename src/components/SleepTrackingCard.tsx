@@ -1,7 +1,7 @@
-
+"use client";
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Moon, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
+import { Moon, MoreHorizontal, ArrowRight, Loader2, BarChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,12 +15,16 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useRouter } from 'next/navigation';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
 
 const SleepTrackingCard = () => {
+  const router = useRouter();
+  
   // States for UI
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -45,6 +49,57 @@ const SleepTrackingCard = () => {
     "Environment": 75,
     "Habits": 70
   });
+  const [assessmentHistory, setAssessmentHistory] = useState<any[]>([]);
+
+  // Prepare data for pie chart
+  const pieData = [
+    { name: 'Sleep Score', value: sleepScore, color: '#4338CA' },
+    { name: 'Remaining', value: 100 - sleepScore, color: '#E0E7FF' }
+  ];
+
+  useEffect(() => {
+    // Load most recent assessment and entire history from localStorage
+    const loadAssessmentData = () => {
+      try {
+        const historyData = localStorage.getItem('sleepAssessmentHistory');
+        if (historyData) {
+          const parsedData = JSON.parse(historyData);
+          setAssessmentHistory(parsedData);
+          
+          if (parsedData.length > 0) {
+            // Sort by date and get the most recent
+            const sortedData = parsedData.sort(
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+            );
+            const latestAssessment = sortedData[0];
+            
+            setSleepScore(latestAssessment.score);
+            setSleepCategories(latestAssessment.categories);
+            setInsights(latestAssessment.insights || insights);
+            setAiAnalysis(latestAssessment.analysis || "");
+            
+            // Format date
+            const assessmentDate = new Date(latestAssessment.date);
+            const now = new Date();
+            
+            // If today, show "Today"
+            if (assessmentDate.toDateString() === now.toDateString()) {
+              setLastAssessmentDate("Today");
+            } else {
+              setLastAssessmentDate(assessmentDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric'
+              }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error loading assessment data:", error);
+      }
+    };
+
+    loadAssessmentData();
+  }, []);
 
   // Function to call Gemini API directly
   const callGeminiAPI = async (prompt: string): Promise<string> => {
@@ -85,8 +140,8 @@ const SleepTrackingCard = () => {
       // Parse the AI response to extract questions and options
       const sections = aiResponse.split('QUESTION:').filter(section => section.trim() !== '');
       
-      const parsedQuestions: React.SetStateAction<string[]> = [];
-      const parsedOptions: React.SetStateAction<string[][]> = [];
+      const parsedQuestions: string[] = [];
+      const parsedOptions: string[][] = [];
       
       sections.forEach(section => {
         // Split each section into lines
@@ -195,69 +250,73 @@ const SleepTrackingCard = () => {
   };
 
   // Generate sleep insights based on answers about last night's sleep
-const generateSleepInsights = async (userAnswers: Record<number, string>) => {
-  setQuizComplete(true);
-  setIsGeneratingInsights(true);
-  
-  try {
-    // Create a formatted string of the user's answers
-    const answersText = Object.entries(userAnswers).map(([key, value]) => {
-      const questionIndex = parseInt(key);
-      return `Question: ${questions[questionIndex]}\nAnswer: ${value}`;
-    }).join('\n\n');
+  const generateSleepInsights = async (userAnswers: Record<number, string>) => {
+    setQuizComplete(true);
+    setIsGeneratingInsights(true);
     
-    // Prepare the prompt for the AI analysis
-    const promptForAnalysis = `Based on these answers about LAST NIGHT's sleep quality, provide:
+    try {
+      // Create a formatted string of the user's answers
+      const answersText = Object.entries(userAnswers).map(([key, value]) => {
+        const questionIndex = parseInt(key);
+        return `Question: ${questions[questionIndex]}\nAnswer: ${value}`;
+      }).join('\n\n');
+      
+      // Prepare the prompt for the AI analysis
+      const promptForAnalysis = `Based on these answers about LAST NIGHT's sleep quality, provide:
 
-1. A detailed AI analysis of the user's sleep (2-3 sentences that personalize the assessment based on their answers)
-2. Exactly 3 specific, personalized, and actionable recommendations to improve tonight's sleep
-3. A breakdown of sleep quality across these 5 categories, with scores between 0-100:
-   - Quality (depth and restfulness)
-   - Duration (appropriate length)
-   - Consistency (regular patterns)
-   - Environment (bedroom conditions)
-   - Habits (pre-sleep behaviors)
+    1. A detailed AI analysis of the user's sleep (2-3 sentences that personalize the assessment based on their answers)
+    2. Exactly 3 specific, personalized, and actionable recommendations to improve tonight's sleep
+    3. A breakdown of sleep quality across these 5 categories, with scores between 0-100:
+       - Quality (depth and restfulness)
+       - Duration (appropriate length)
+       - Consistency (regular patterns)
+       - Environment (bedroom conditions)
+       - Habits (pre-sleep behaviors)
 
-${answersText}
+    ${answersText}
 
-Format your response exactly like this:
-ANALYSIS: [2-3 sentence personalized analysis]
+    Format your response exactly like this:
+    ANALYSIS: [2-3 sentence personalized analysis]
 
-RECOMMENDATIONS:
-[First recommendation under 15 words]
-[Second recommendation under 15 words]
-[Third recommendation under 15 words]
+    RECOMMENDATIONS:
+    [First recommendation under 15 words]
+    [Second recommendation under 15 words]
+    [Third recommendation under 15 words]
 
-CATEGORY_SCORES:
-Quality: [score]
-Duration: [score]
-Consistency: [score]
-Environment: [score]
-Habits: [score]`;
+    CATEGORY_SCORES:
+    Quality: [score]
+    Duration: [score]
+    Consistency: [score]
+    Environment: [score]
+    Habits: [score]`;
 
-    // Call Gemini API directly
-    const aiResponse = await callGeminiAPI(promptForAnalysis);
-    
-    // Parse the response
-    //@ts-expect-error: no need here
-    const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nRECOMMENDATIONS:|\n\nCATEGORY_SCORES:|$)/s);
-    //@ts-expect-error: no need here
-    const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCATEGORY_SCORES:|$)/s);
-    //@ts-expect-error: no need here
-    const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
-    
-    // Set AI analysis
-    if (analysisMatch && analysisMatch[1]) {
-      setAiAnalysis(analysisMatch[1].trim());
-    } else {
-      setAiAnalysis("Based on your sleep data, you had a moderately restful night with some areas for improvement. Your sleep patterns indicate you could benefit from adjustments to your sleep environment and pre-bedtime routine.");
-    }
-    
-    // Set recommendations
-    if (recommendationsMatch && recommendationsMatch[1]) {
-      const recLines = recommendationsMatch[1].trim().split('\n').filter(line => line.trim() !== '');
-      if (recLines.length >= 3) {
-        setInsights(recLines.slice(0, 3));
+      // Call Gemini API directly
+      const aiResponse = await callGeminiAPI(promptForAnalysis);
+      
+      // Parse the response
+      const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nRECOMMENDATIONS:|\n\nCATEGORY_SCORES:|$)/s);
+      const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCATEGORY_SCORES:|$)/s);
+      const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
+      
+      // Set AI analysis
+      if (analysisMatch && analysisMatch[1]) {
+        setAiAnalysis(analysisMatch[1].trim());
+      } else {
+        setAiAnalysis("Based on your sleep data, you had a moderately restful night with some areas for improvement. Your sleep patterns indicate you could benefit from adjustments to your sleep environment and pre-bedtime routine.");
+      }
+      
+      // Set recommendations
+      if (recommendationsMatch && recommendationsMatch[1]) {
+        const recLines = recommendationsMatch[1].trim().split('\n').filter(line => line.trim() !== '');
+        if (recLines.length >= 3) {
+          setInsights(recLines.slice(0, 3));
+        } else {
+          setInsights([
+            "Dim all lights one hour before your target bedtime tonight",
+            "Drink chamomile tea 30 minutes before bed to promote relaxation",
+            "Set your bedroom temperature between 60-67°F for optimal sleep"
+          ]);
+        }
       } else {
         setInsights([
           "Dim all lights one hour before your target bedtime tonight",
@@ -265,63 +324,127 @@ Habits: [score]`;
           "Set your bedroom temperature between 60-67°F for optimal sleep"
         ]);
       }
-    } else {
+      
+      // Set category scores and calculate sleep score as their average
+      let categoryScores: {[key: string]: number} = {};
+      
+      if (categoryScoresMatch && categoryScoresMatch[1]) {
+        const scoreLines = categoryScoresMatch[1].trim().split('\n');
+        
+        scoreLines.forEach(line => {
+          const [category, scoreStr] = line.split(':').map(s => s.trim());
+          if (category && scoreStr) {
+            const score = parseInt(scoreStr);
+            if (!isNaN(score)) {
+              categoryScores[category] = score;
+            }
+          }
+        });
+        
+        if (Object.keys(categoryScores).length < 5) {
+          // If we don't have all 5 categories, calculate them ourselves
+          categoryScores = generateCategoryScores(userAnswers);
+        }
+      } else {
+        // Calculate category scores ourselves if not provided
+        categoryScores = generateCategoryScores(userAnswers);
+      }
+      
+      // Set the category scores
+      setSleepCategories(categoryScores);
+      
+      // Calculate sleep score as the average of category scores
+      const totalScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0);
+      const averageScore = Math.round(totalScore / Object.values(categoryScores).length);
+      
+      // Set the sleep score and last assessment date
+      setSleepScore(averageScore);
+      setLastAssessmentDate("Today");
+      
+      // Save assessment to localStorage
+      saveAssessmentToHistory(userAnswers, averageScore, categoryScores);
+      
+    } catch (error) {
+      console.error("Error generating insights:", error);
+      
+      // Default insights and analysis
       setInsights([
         "Dim all lights one hour before your target bedtime tonight",
         "Drink chamomile tea 30 minutes before bed to promote relaxation",
         "Set your bedroom temperature between 60-67°F for optimal sleep"
       ]);
+      setAiAnalysis("Your sleep patterns show room for improvement. Focus on creating a better sleep environment and pre-bedtime routine to enhance sleep quality.");
+      
+      // Default category scores
+      const defaultCategories = {
+        "Quality": 65,
+        "Duration": 65,
+        "Consistency": 65,
+        "Environment": 65,
+        "Habits": 65
+      };
+      
+      setSleepCategories(defaultCategories);
+      
+      // Calculate default sleep score as average of default categories
+      const defaultTotal = Object.values(defaultCategories).reduce((sum, score) => sum + score, 0);
+      const defaultAverage = Math.round(defaultTotal / Object.values(defaultCategories).length);
+      setSleepScore(defaultAverage);
+      
+      // Save default assessment to localStorage
+      saveAssessmentToHistory({}, defaultAverage, defaultCategories);
+      
+    } finally {
+      setIsGeneratingInsights(false);
     }
-    
-    // Set category scores and calculate sleep score as their average
-    let categoryScores: {[key: string]: number} = {};
-    
-    if (categoryScoresMatch && categoryScoresMatch[1]) {
-      const scoreLines = categoryScoresMatch[1].trim().split('\n');
+  };
+
+  // Save assessment to localStorage history
+  const saveAssessmentToHistory = (
+    userAnswers: Record<number, string>, 
+    score: number, 
+    categories: {[key: string]: number}
+  ) => {
+    try {
+      // Create new assessment object
+      const newAssessment = {
+        date: new Date().toISOString(),
+        score,
+        categories,
+        insights,
+        analysis: aiAnalysis,
+        questions,
+        responses: userAnswers
+      };
       
-      scoreLines.forEach(line => {
-        const [category, scoreStr] = line.split(':').map(s => s.trim());
-        if (category && scoreStr) {
-          const score = parseInt(scoreStr);
-          if (!isNaN(score)) {
-            categoryScores[category] = score;
-          }
-        }
-      });
+      // Get existing history or initialize empty array
+      let history = [];
+      const existingHistory = localStorage.getItem('sleepAssessmentHistory');
       
-      if (Object.keys(categoryScores).length < 5) {
-        // If we don't have all 5 categories, calculate them ourselves
-        categoryScores = generateCategoryScores(userAnswers);
+      if (existingHistory) {
+        history = JSON.parse(existingHistory);
       }
-    } else {
-      // Calculate category scores ourselves if not provided
-      categoryScores = generateCategoryScores(userAnswers);
+      
+      // Add new assessment to beginning of array
+      history.unshift(newAssessment);
+      
+      // Limit history to last 30 assessments
+      if (history.length > 30) {
+        history = history.slice(0, 30);
+      }
+      
+      // Save back to localStorage
+      localStorage.setItem('sleepAssessmentHistory', JSON.stringify(history));
+      setAssessmentHistory(history);
+      
+    } catch (error) {
+      console.error("Error saving assessment to history:", error);
     }
-    
-    // Set the category scores
-    setSleepCategories(categoryScores);
-    
-    // Calculate sleep score as the average of category scores
-    const totalScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0);
-    const averageScore = Math.round(totalScore / Object.values(categoryScores).length);
-    
-    // Set the sleep score and last assessment date
-    setSleepScore(averageScore);
-    setLastAssessmentDate("Today");
-    
-  } catch (error) {
-    console.error("Error generating insights:", error);
-    
-    // Default insights and analysis
-    setInsights([
-      "Dim all lights one hour before your target bedtime tonight",
-      "Drink chamomile tea 30 minutes before bed to promote relaxation",
-      "Set your bedroom temperature between 60-67°F for optimal sleep"
-    ]);
-    setAiAnalysis("Your sleep patterns show room for improvement. Focus on creating a better sleep environment and pre-bedtime routine to enhance sleep quality.");
-    
-    // Default category scores
-    const defaultCategories = {
+  };
+
+  // Generate category scores based on user answers
+  const generateCategoryScores = (userAnswers: Record<number, string>): {[key: string]: number} => {
+    const scores: {[key: string]: number} = {
       "Quality": 65,
       "Duration": 65,
       "Consistency": 65,
@@ -329,138 +452,116 @@ Habits: [score]`;
       "Habits": 65
     };
     
-    setSleepCategories(defaultCategories);
+    const answersArray = Object.values(userAnswers);
     
-    // Calculate default sleep score as average of default categories
-    const defaultTotal = Object.values(defaultCategories).reduce((sum, score) => sum + score, 0);
-    const defaultAverage = Math.round(defaultTotal / Object.values(defaultCategories).length);
-    setSleepScore(defaultAverage);
-  } finally {
-    setIsGeneratingInsights(false);
-  }
-};
-
-// Generate category scores based on user answers
-const generateCategoryScores = (userAnswers: Record<number, string>): {[key: string]: number} => {
-  const scores: {[key: string]: number} = {
-    "Quality": 65,
-    "Duration": 65,
-    "Consistency": 65,
-    "Environment": 65,
-    "Habits": 65
-  };
-  
-  const answersArray = Object.values(userAnswers);
-  
-  // Hours of sleep (affects Duration and Consistency)
-  if (answersArray[0]?.includes("7-8 hours")) {
-    scores.Duration += 25;
-    scores.Consistency += 10;
-  } else if (answersArray[0]?.includes("More than 8 hours")) {
-    scores.Duration += 15;
-    scores.Consistency += 5;
-  } else if (answersArray[0]?.includes("5-6 hours")) {
-    scores.Duration -= 10;
-    scores.Consistency -= 5;
-  } else if (answersArray[0]?.includes("Less than 5 hours")) {
-    scores.Duration -= 25;
-    scores.Consistency -= 15;
-  }
-  
-  // Time to fall asleep (affects Quality and Habits)
-  if (answersArray[1]?.includes("Less than 5 minutes")) {
-    scores.Quality += 15;
-    scores.Habits += 10;
-  } else if (answersArray[1]?.includes("5-15 minutes")) {
-    scores.Quality += 10;
-    scores.Habits += 5;
-  } else if (answersArray[1]?.includes("15-30 minutes")) {
-    // neutral
-  } else if (answersArray[1]?.includes("30-60 minutes")) {
-    scores.Quality -= 10;
-    scores.Habits -= 10;
-  } else if (answersArray[1]?.includes("More than 60 minutes")) {
-    scores.Quality -= 20;
-    scores.Habits -= 20;
-  }
-  
-  // Waking during night (affects Quality and Environment)
-  if (answersArray[2]?.includes("Not at all")) {
-    scores.Quality += 20;
-    scores.Environment += 10;
-  } else if (answersArray[2]?.includes("Once briefly")) {
-    scores.Quality += 10;
-    scores.Environment += 5;
-  } else if (answersArray[2]?.includes("2-3 times")) {
-    scores.Quality -= 10;
-    scores.Environment -= 5;
-  } else if (answersArray[2]?.includes("More than 3 times")) {
-    scores.Quality -= 20;
-    scores.Environment -= 10;
-  } else if (answersArray[2]?.includes("Awake for extended")) {
-    scores.Quality -= 30;
-    scores.Environment -= 15;
-  }
-  
-  // Morning feeling (affects Quality and overall well-being)
-  if (answersArray[3]?.includes("Very refreshed")) {
-    scores.Quality += 20;
-  } else if (answersArray[3]?.includes("Mostly rested")) {
-    scores.Quality += 10;
-  } else if (answersArray[3]?.includes("Somewhat tired")) {
-    // neutral
-  } else if (answersArray[3]?.includes("Very tired")) {
-    scores.Quality -= 15;
-  } else if (answersArray[3]?.includes("Exhausted")) {
-    scores.Quality -= 25;
-  }
-  
-  // Electronic devices (affects Habits and Environment)
-  if (answersArray[4]?.includes("No devices")) {
-    scores.Habits += 20;
-    scores.Environment += 10;
-  } else if (answersArray[4]?.includes("Brief check only")) {
-    scores.Habits += 10;
-    scores.Environment += 5;
-  } else if (answersArray[4]?.includes("15-30 minutes")) {
-    scores.Habits -= 5;
-    scores.Environment -= 5;
-  } else if (answersArray[4]?.includes("30-60 minutes")) {
-    scores.Habits -= 15;
-    scores.Environment -= 10;
-  } else if (answersArray[4]?.includes("Used until falling asleep")) {
-    scores.Habits -= 25;
-    scores.Environment -= 15;
-  }
-  
-  // Ensure all scores are within 0-100 range
-  Object.keys(scores).forEach(key => {
-    scores[key] = Math.max(0, Math.min(100, scores[key]));
-  });
-  
-  return scores;
-};
-
-  // Get color for category score
-  const getCategoryColor = (score: number): string => {
-    if (score >= 80) return 'text-green-500';
-    if (score >= 65) return 'text-orange-500';
-    if (score >= 50) return 'text-yellow-500';
-    return 'text-red-500';
+    // Hours of sleep (affects Duration and Consistency)
+    if (answersArray[0]?.includes("7-8 hours")) {
+      scores.Duration += 25;
+      scores.Consistency += 10;
+    } else if (answersArray[0]?.includes("More than 8 hours")) {
+      scores.Duration += 15;
+      scores.Consistency += 5;
+    } else if (answersArray[0]?.includes("5-6 hours")) {
+      scores.Duration -= 10;
+      scores.Consistency -= 5;
+    } else if (answersArray[0]?.includes("Less than 5 hours")) {
+      scores.Duration -= 25;
+      scores.Consistency -= 15;
+    }
+    
+    // Time to fall asleep (affects Quality and Habits)
+    if (answersArray[1]?.includes("Less than 5 minutes")) {
+      scores.Quality += 15;
+      scores.Habits += 10;
+    } else if (answersArray[1]?.includes("5-15 minutes")) {
+      scores.Quality += 10;
+      scores.Habits += 5;
+    } else if (answersArray[1]?.includes("15-30 minutes")) {
+      // neutral
+    } else if (answersArray[1]?.includes("30-60 minutes")) {
+      scores.Quality -= 10;
+      scores.Habits -= 10;
+    } else if (answersArray[1]?.includes("More than 60 minutes")) {
+      scores.Quality -= 20;
+      scores.Habits -= 20;
+    }
+    
+    // Waking during night (affects Quality and Environment)
+    if (answersArray[2]?.includes("Not at all")) {
+      scores.Quality += 20;
+      scores.Environment += 10;
+    } else if (answersArray[2]?.includes("Once briefly")) {
+      scores.Quality += 10;
+      scores.Environment += 5;
+    } else if (answersArray[2]?.includes("2-3 times")) {
+      scores.Quality -= 10;
+      scores.Environment -= 5;
+    } else if (answersArray[2]?.includes("More than 3 times")) {
+      scores.Quality -= 20;
+      scores.Environment -= 10;
+    } else if (answersArray[2]?.includes("Awake for extended")) {
+      scores.Quality -= 30;
+      scores.Environment -= 15;
+    }
+    
+    // Morning feeling (affects Quality and overall well-being)
+    if (answersArray[3]?.includes("Very refreshed")) {
+      scores.Quality += 20;
+    } else if (answersArray[3]?.includes("Mostly rested")) {
+      scores.Quality += 10;
+    } else if (answersArray[3]?.includes("Somewhat tired")) {
+      // neutral
+    } else if (answersArray[3]?.includes("Very tired")) {
+      scores.Quality -= 15;
+    } else if (answersArray[3]?.includes("Exhausted")) {
+      scores.Quality -= 25;
+    }
+    
+    // Electronic devices (affects Habits and Environment)
+    if (answersArray[4]?.includes("No devices")) {
+      scores.Habits += 20;
+      scores.Environment += 10;
+    } else if (answersArray[4]?.includes("Brief check only")) {
+      scores.Habits += 10;
+      scores.Environment += 5;
+    } else if (answersArray[4]?.includes("15-30 minutes")) {
+      scores.Habits -= 5;
+      scores.Environment -= 5;
+    } else if (answersArray[4]?.includes("30-60 minutes")) {
+      scores.Habits -= 15;
+      scores.Environment -= 10;
+    } else if (answersArray[4]?.includes("Used until falling asleep")) {
+      scores.Habits -= 25;
+      scores.Environment -= 15;
+    }
+    
+    // Ensure all scores are within 0-100 range
+    Object.keys(scores).forEach(key => {
+      scores[key] = Math.max(0, Math.min(100, scores[key]));
+    });
+    
+    return scores;
   };
 
-  // Get background color for progress bar
-  const getProgressColor = (score: number): string => {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 65) return 'bg-orange-500';
-    if (score >= 50) return 'bg-yellow-500';
-    return 'bg-red-500';
+  // Get sleep quality label based on score
+  const getSleepQualityLabel = (score: number): string => {
+    if (score >= 85) return "Excellent";
+    if (score >= 70) return "Good";
+    if (score >= 50) return "Fair";
+    return "Needs improvement";
+  };
+
+  // Navigate to analytics page with detailed sleep analysis
+  const viewDetails = () => {
+    // We'll use localStorage to persist data between pages
+    // No need to use sessionStorage since we're already using localStorage for history
+    router.push('/sleep-analysis');
   };
 
   return (
     <>
       <Card className="border-0 shadow-lg rounded-3xl overflow-hidden h-full">
-        <CardHeader className="p-4 md:p-6 bg-gradient-to-r from-orange-500 to-orange-600">
+        <CardHeader className="p-4 md:p-6 bg-gradient-to-r from-indigo-500 to-purple-600">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Moon className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -473,79 +574,65 @@ const generateCategoryScores = (userAnswers: Record<number, string>): {[key: str
         </CardHeader>
         
         <CardContent className="p-4 md:p-6">
-          <div className="flex items-start justify-between mb-4 md:mb-6">
-            <div>
-              <div className="flex items-baseline">
+          <div className="flex flex-col items-center justify-center mb-4">
+            <div className="h-40 w-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={0}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="text-center mt-1">
+              <div className="flex items-center justify-center">
                 <span className="text-3xl md:text-4xl font-bold">{sleepScore}</span>
                 <span className="text-xs md:text-sm text-gray-500 ml-1">/100</span>
-                <Badge className="ml-2 md:ml-3 bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs">
-                  {sleepScore > 70 ? '+' : ''}{sleepScore - 65}% from avg
-                </Badge>
               </div>
-              <h3 className="text-xs md:text-sm text-gray-500 mt-1">Sleep Score • Last assessed: {lastAssessmentDate}</h3>
-              
-              <div className="flex space-x-1 mt-2 md:mt-3">
-                {[...Array(10)].map((_, i) => (
-                  <span 
-                    key={i} 
-                    className="inline-block w-6 md:w-8 h-1.5 rounded-full" 
-                    style={{ 
-                      backgroundColor: i < (sleepScore / 10) ? '#F97316' : '#FFEDD5'
-                    }}
-                  ></span>
-                ))}
-              </div>
+              <Badge className="mt-1 bg-indigo-100 text-indigo-800 hover:bg-indigo-200 text-xs">
+                {getSleepQualityLabel(sleepScore)}
+              </Badge>
+              <h3 className="text-xs md:text-sm text-gray-500 mt-1 pb-16">Sleep Score • Last assessed: {lastAssessmentDate}</h3>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {Object.entries(sleepCategories).map(([category, score]) => (
-              <div key={category} className="border rounded-lg p-2">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-gray-600">{category}</span>
-                  <span className={`text-xs font-medium ${getCategoryColor(score)}`}>{score}</span>
-                </div>
-                <Progress value={score} className="h-1.5" 
-                  style={{backgroundColor: '#FFEDD5'}}
-                >
-                  <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
-                </Progress>
-              </div>
-            ))}
-          </div>
-
-          <Separator className="my-2 md:my-2" />
+          <Separator className="my-3 md:my-4" />
           
-          <div className="space-y-3 md:space-y-5 mt-3 md:mt-4">
-            <h3 className="font-semibold text-base md:text-lg">AI Recommendations</h3>
+          <div className="mt-4 md:mt-6 space-y-3">
+            <Button 
+              onClick={viewDetails}
+              className="bg-indigo-700 hover:bg-indigo-800 text-white text-xs md:text-sm w-full"
+            >
+              <BarChart className="mr-2 h-4 w-4" />
+              View Detailed Analysis
+            </Button>
             
-            {insights.map((insight, index) => (
-              <div key={index} className="flex items-start bg-orange-50 p-2 md:p-3 rounded-xl">
-                <div className="flex-shrink-0 bg-orange-100 p-1.5 md:p-2 rounded-full mr-2 md:mr-3">
-                  <span className="flex items-center justify-center w-3 h-3 md:w-4 md:h-4 text-xs font-bold text-orange-700">{index + 1}</span>
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-800">{insight}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-4 md:mt-8 flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-gray-50 rounded-xl">
-            <div>
-              <p className="text-xs md:text-sm font-medium">Take today's sleep assessment</p>
-              <p className="text-xs text-gray-500 hidden md:block">Get personalized sleep recommendations</p>
-            </div>
             <Button 
               onClick={handleStartQuiz} 
-              className="bg-orange-600 hover:bg-orange-700 text-white text-xs md:text-sm py-1 px-2 md:py-2 md:px-3"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
               disabled={isGeneratingQuestions}
             >
               {isGeneratingQuestions ? (
-                <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Preparing Assessment...
+                </>
               ) : (
                 <>
-                  Start <ArrowRight className="ml-1 md:ml-2 h-3 w-3 md:h-4 md:w-4" />
+                  Take New Assessment <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}
             </Button>
@@ -575,7 +662,7 @@ const generateCategoryScores = (userAnswers: Record<number, string>): {[key: str
 
           {isGeneratingQuestions && (
             <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-orange-500 mb-4" />
+              <Loader2 className="h-12 w-12 animate-spin text-indigo-500 mb-4" />
               <p className="text-center text-gray-500">
                 Generating your personalized sleep assessment questions...
               </p>
@@ -585,8 +672,8 @@ const generateCategoryScores = (userAnswers: Record<number, string>): {[key: str
           {quizComplete ? (
             <div className="space-y-4 py-4">
               <div className="text-center mb-6">
-                <div className="inline-block p-4 rounded-full bg-orange-100 mb-2">
-                  <Moon className="h-8 w-8 text-orange-600" />
+                <div className="inline-block p-4 rounded-full bg-indigo-100 mb-2">
+                  <Moon className="h-8 w-8 text-indigo-600" />
                 </div>
                 <h3 className="text-2xl font-bold">Your Sleep Score: {sleepScore}</h3>
                 <p className="text-gray-500">
@@ -599,15 +686,15 @@ const generateCategoryScores = (userAnswers: Record<number, string>): {[key: str
               
               {isGeneratingInsights ? (
                 <div className="flex flex-col items-center justify-center py-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-2" />
+                  <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mb-2" />
                   <p className="text-center text-gray-500">
                     Analyzing your responses and generating personalized recommendations...
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="bg-orange-50 p-4 rounded-lg mb-4">
-                    <h4 className="font-medium text-orange-800 mb-2">AI Analysis</h4>
+                  <div className="bg-indigo-50 p-4 rounded-lg mb-4">
+                    <h4 className="font-medium text-indigo-800 mb-2">AI Analysis</h4>
                     <p className="text-sm text-gray-700">{aiAnalysis}</p>
                   </div>
                   
@@ -617,11 +704,9 @@ const generateCategoryScores = (userAnswers: Record<number, string>): {[key: str
                       <div key={category} className="space-y-1">
                         <div className="flex justify-between items-center">
                           <span className="text-sm">{category}</span>
-                          <span className={`text-sm font-medium ${getCategoryColor(score)}`}>{score}/100</span>
+                          <span className="text-sm font-medium">{score}/100</span>
                         </div>
-                        <Progress value={score} className="h-2">
-                          <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
-                        </Progress>
+                        <Progress value={score} className="h-2" />
                       </div>
                     ))}
                   </div>
@@ -629,82 +714,64 @@ const generateCategoryScores = (userAnswers: Record<number, string>): {[key: str
                   <div>
                     <h4 className="font-medium mb-2">Personalized Recommendations</h4>
                     {insights.map((insight, index) => (
-                      <div key={index} className="flex items-start bg-orange-50 p-3 rounded-lg mb-2">
-                        <div className="flex-shrink-0 bg-orange-100 p-2 rounded-full mr-3">
-                          <span className="flex items-center justify-center w-4 h-4 text-xs font-bold text-orange-700">{index + 1}</span>
-                        </div>
-                        <p className="text-sm text-gray-800">{insight}</p>
+                      <div key={index} className="flex items-start bg-indigo-50 p-3 rounded-lg mb-2">
+                        <div className="flex-shrink-0 bg-indigo-100 p-2 rounded-full mr-3">
+                          <span className="flex items-center justify-center w-4 h-4 text-xs font-bold text-indigo-700">{index + 1}</span>
+                          </div>
+                        <p className="text-sm text-indigo-700">{insight}</p>
                       </div>
                     ))}
                   </div>
+                  
+                  <DialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:justify-between">
+                    <Button 
+                      onClick={viewDetails}
+                      className="bg-indigo-700 hover:bg-indigo-800 text-white w-full sm:w-auto"
+                    >
+                     <BarChart className="mr-2 h-4 w-4" />
+                      View Detailed Analysis
+                    </Button>
+                    <DialogClose asChild>
+                      <Button variant="outline" className="w-full sm:w-auto">
+                        Close
+                      </Button>
+                    </DialogClose>
+                  </DialogFooter>
                 </>
               )}
             </div>
           ) : (
-            !isGeneratingQuestions && (
-              <>
-                <div className="py-4">
-                  <h3 className="text-lg font-medium mb-2">{questions[currentQuestion]}</h3>
-                  <div className="space-y-2">
-                    {options[currentQuestion]?.map((option, index) => (
-                      <Button
-                        key={index}
-                        className="w-full justify-start text-left p-3 h-auto whitespace-normal"
-                        variant={answers[currentQuestion] === option ? "default" : "outline"}
-                        onClick={() => handleAnswer(currentQuestion, option)}
-                      >
-                        {option}
-                      </Button>
-                    ))}
-                  </div>
+            !isGeneratingQuestions && questions.length > 0 && (
+              <div className="space-y-4 py-4">
+                <h3 className="font-medium text-lg">{questions[currentQuestion]}</h3>
+                <div className="space-y-2">
+                  {options[currentQuestion]?.map((option, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      className="w-full justify-start text-left h-auto py-3 px-4"
+                      onClick={() => handleAnswer(currentQuestion, option)}
+                    >
+                      {option}
+                    </Button>
+                  ))}
                 </div>
-                <div className="flex justify-between mt-2">
+                
+                <div className="flex justify-between items-center pt-4">
                   <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (currentQuestion > 0) {
-                        setCurrentQuestion(currentQuestion - 1);
-                      }
-                    }}
+                    variant="ghost"
+                    onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
                     disabled={currentQuestion === 0}
                   >
-                    Previous
+                    Back
                   </Button>
-                  <Button
-                    onClick={() => {
-                      if (currentQuestion < questions.length - 1 && answers[currentQuestion]) {
-                        setCurrentQuestion(currentQuestion + 1);
-                      } else if (answers[currentQuestion]) {
-                        generateSleepInsights(answers);
-                      }
-                    }}
-                    disabled={!answers[currentQuestion]}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    {currentQuestion === questions.length - 1 ? "Finish" : "Next"}
-                  </Button>
+                  <span className="text-sm text-gray-500">
+                    {currentQuestion + 1} of {questions.length}
+                  </span>
                 </div>
-              </>
+              </div>
             )
           )}
-          
-          <DialogFooter>
-            {quizComplete && (
-              <DialogClose asChild>
-                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                  Close and Save Results
-                </Button>
-              </DialogClose>
-            )}
-            
-            {!quizComplete && !isGeneratingQuestions && (
-              <DialogClose asChild>
-                <Button variant="outline" className="w-full">
-                  Cancel Assessment
-                </Button>
-              </DialogClose>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

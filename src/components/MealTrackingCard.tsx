@@ -1,6 +1,7 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Utensils, ArrowRight, Loader2, AlertTriangle, Calendar, History } from 'lucide-react';
+import { Utensils, Settings, ArrowRight, Loader2, BarChart, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,12 +15,16 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useRouter } from 'next/navigation';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
 
 const MealTrackingCard = () => {
+  const router = useRouter();
+  
   // States for UI
   const [showMealEntry, setShowMealEntry] = useState(false);
   const [showMealHistory, setShowMealHistory] = useState(false);
@@ -59,6 +64,12 @@ const MealTrackingCard = () => {
   }>>([]);
   const [dailyCalories, setDailyCalories] = useState(1850);
   const [scoreHistory, setScoreHistory] = useState<number[]>([72]);
+
+  // Prepare data for pie chart
+  const pieData = [
+    { name: 'Nutrition Score', value: nutritionScore, color: '#F97316' },
+    { name: 'Remaining', value: 100 - nutritionScore, color: '#FED7AA' }
+  ];
 
   // Function to call Gemini API directly
   const callGeminiAPI = async (prompt: string): Promise<string> => {
@@ -149,12 +160,9 @@ OVERALL_SCORE: [score]`;
       const aiResponse = await callGeminiAPI(promptForAnalysis);
       
       // Parse the response
-      //@ts-expect-error: no need here
       const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nRECOMMENDATIONS:|\n\nCALORIES:|\n\nCATEGORY_SCORES:|$)/s);
-      //@ts-expect-error: no need here
       const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCALORIES:|\n\nCATEGORY_SCORES:|$)/s);
       const caloriesMatch = aiResponse.match(/CALORIES:\s*(\d+)/);
-      //@ts-expect-error: no need here
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)(?=\n\nOVERALL_SCORE:|$)/s);
       const overallScoreMatch = aiResponse.match(/OVERALL_SCORE:\s*(\d+)/);
       
@@ -242,6 +250,23 @@ OVERALL_SCORE: [score]`;
       
       setMealHistory(prev => [...prev, newMeal]);
       
+      // Store in localStorage for details page
+      const newMealData = {
+        date: new Date().toISOString(),
+        score: overallScore,
+        categories: categoryScores,
+        type: mealType,
+        time: mealTime,
+        description: mealDescription,
+        calories: mealCalories,
+        analysis: mealAnalysis,
+        recommendations: recommendations
+      };
+      
+      // Get existing data or initialize empty array
+      const existingData = JSON.parse(localStorage.getItem('mealTrackingHistory') || '[]');
+      localStorage.setItem('mealTrackingHistory', JSON.stringify([...existingData, newMealData]));
+      
       // Set last assessment date
       setLastAssessmentDate("Just now");
       
@@ -273,6 +298,22 @@ OVERALL_SCORE: [score]`;
       setMealHistory(prev => [...prev, defaultMeal]);
       setDailyCalories(prev => prev + 550);
       setCalorieIntake(prev => prev + 550);
+      
+      // Still store in localStorage
+      const defaultMealData = {
+        date: new Date().toISOString(),
+        score: 70,
+        categories: defaultMeal.categories,
+        type: mealType,
+        time: mealTime,
+        description: mealDescription,
+        calories: 550,
+        analysis: defaultMeal.analysis,
+        recommendations: recommendations
+      };
+      
+      const existingData = JSON.parse(localStorage.getItem('mealTrackingHistory') || '[]');
+      localStorage.setItem('mealTrackingHistory', JSON.stringify([...existingData, defaultMealData]));
     } finally {
       setIsGeneratingAnalysis(false);
     }
@@ -300,35 +341,23 @@ OVERALL_SCORE: [score]`;
     setCurrentStep(2);
   };
 
-  // Get color for category score
-  const getCategoryColor = (score: number): string => {
-    if (score >= 80) return 'text-green-500';
-    if (score >= 65) return 'text-blue-500';
-    if (score >= 50) return 'text-yellow-500';
-    return 'text-red-500';
+  // Get nutrition label based on score
+  const getNutritionLabel = (score: number): string => {
+    if (score >= 85) return "Excellent";
+    if (score >= 70) return "Good";
+    if (score >= 50) return "Fair";
+    return "Needs improvement";
   };
-
-  // Get background color for progress bar
-  const getProgressColor = (score: number): string => {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 65) return 'bg-blue-500';
-    if (score >= 50) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
-  // Calculate calories percentage
-  const caloriePercentage = Math.min(100, Math.round((calorieIntake / calorieGoal) * 100));
   
-  // Format date for display
-  const formatDate = (dateStr: string) => {
-    if (dateStr === getTodayDate()) return "Today";
-    return dateStr;
+  // Navigate to detailed analysis page
+  const goToDetailedAnalysis = () => {
+    router.push('/nutrition');
   };
 
   return (
     <>
-      <Card className="border-0 shadow-lg rounded-3xl overflow-hidden h-full">
-        <CardHeader className="p-4 md:p-6 bg-gradient-to-r from-orange-500 to-amber-600">
+      <Card className="border-0 shadow-lg rounded-xl overflow-hidden h-full">
+        <CardHeader className="p-4 md:p-5 bg-gradient-to-r from-orange-500 to-amber-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Utensils className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -344,130 +373,79 @@ OVERALL_SCORE: [score]`;
                 <History className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-                <MoreHorizontal className="w-4 h-4 md:w-5 md:h-5" />
+                <Settings className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="p-4 md:p-6">
-          <div className="flex items-start justify-between mb-4 md:mb-6">
-            <div>
-              <div className="flex items-baseline">
+        <CardContent className="p-2 md:p-5">
+          <div className="flex flex-col items-center justify-center mb-4">
+            <div className="h-48 w-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={0}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="text-center mt-2">
+              <div className="flex items-center justify-center">
                 <span className="text-3xl md:text-4xl font-bold">{nutritionScore}</span>
                 <span className="text-xs md:text-sm text-gray-500 ml-1">/100</span>
-                {mealHistory.length > 1 && (
-                  <Badge className="ml-2 md:ml-3 bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs">
-                    {nutritionScore > mealHistory[mealHistory.length - 2]?.score ? '+' : ''}
-                    {nutritionScore - (mealHistory[mealHistory.length - 2]?.score || nutritionScore)} from prev
-                  </Badge>
-                )}
               </div>
+              <Badge className="mt-1 bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs">
+                {getNutritionLabel(nutritionScore)}
+              </Badge>
               <h3 className="text-xs md:text-sm text-gray-500 mt-1">
-                Nutrition Score • Last assessed: {lastAssessmentDate}
+                Last assessed: {lastAssessmentDate}
                 {mealHistory.length > 0 && ` • ${mealHistory.length} meals logged`}
               </h3>
-              
-              <div className="flex space-x-1 mt-2 md:mt-3">
-                {[...Array(10)].map((_, i) => (
-                  <span 
-                    key={i} 
-                    className="inline-block w-6 md:w-8 h-1.5 rounded-full" 
-                    style={{ 
-                      backgroundColor: i < (nutritionScore / 10) ? '#F97316' : '#FED7AA'
-                    }}
-                  ></span>
-                ))}
-              </div>
             </div>
           </div>
 
-          <div className="mb-5">
+          <div className="mb-4">
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-medium">Daily Calories</span>
               <span className="text-sm font-medium">{calorieIntake} / {calorieGoal} kcal</span>
             </div>
-            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+            <Progress value={(calorieIntake / calorieGoal) * 100} className="h-2">
               <div 
                 className="h-full bg-gradient-to-r from-orange-500 to-amber-500"
-                style={{ width: `${caloriePercentage}%` }}
+                style={{ width: `${Math.min(100, (calorieIntake / calorieGoal) * 100)}%` }}
               ></div>
-            </div>
+            </Progress>
             <p className="text-xs text-gray-500 mt-1">{Math.max(0, calorieGoal - calorieIntake)} calories remaining today</p>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {Object.entries(nutritionCategories).map(([category, score]) => (
-              <div key={category} className="border rounded-lg p-2">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-gray-600">{category}</span>
-                  <span className={`text-xs font-medium ${getCategoryColor(score)}`}>{score}</span>
-                </div>
-                <Progress value={score} className="h-1.5" 
-                  style={{backgroundColor: '#FED7AA'}}
-                >
-                  <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
-                </Progress>
-              </div>
-            ))}
-          </div>
-
-          {mealHistory.length > 0 && (
-            <div className="mb-4">
-              <h3 className="font-semibold text-sm mb-2">Recent Meals</h3>
-              <div className="overflow-hidden border rounded-lg">
-                {mealHistory.slice(-2).map((meal, index) => (
-                  <div key={meal.id} className={`p-2 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-sm">{meal.type}</span>
-                      <span className="text-xs text-gray-500">{meal.time}</span>
-                    </div>
-                    <p className="text-xs text-gray-600 truncate">{meal.description.substring(0, 60)}...</p>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-xs text-gray-500">{meal.calories} kcal</span>
-                      <span className={`text-xs font-medium ${getCategoryColor(meal.score)}`}>Score: {meal.score}</span>
-                    </div>
-                  </div>
-                ))}
-                {mealHistory.length > 2 && (
-                  <div className="p-2 text-center bg-gray-50">
-                    <button 
-                      className="text-xs text-orange-600 hover:text-orange-700"
-                      onClick={() => setShowMealHistory(true)}
-                    >
-                      Show {mealHistory.length - 2} more meals
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <Separator className="my-2 md:my-2" />
           
-          <div className="space-y-3 md:space-y-5 mt-3 md:mt-4">
-            <h3 className="font-semibold text-base md:text-lg">AI Recommendations</h3>
+          <Separator className="my-4" />
+          
+          <div className="flex flex-col space-y-2">
+            <Button 
+              onClick={goToDetailedAnalysis}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs md:text-sm"
+            >
+              <BarChart className="mr-2 h-4 w-4" />
+              View Detailed Analysis
+            </Button>
             
-            {recommendations.map((recommendation, index) => (
-              <div key={index} className="flex items-start bg-orange-50 p-2 md:p-3 rounded-xl">
-                <div className="flex-shrink-0 bg-orange-100 p-1.5 md:p-2 rounded-full mr-2 md:mr-3">
-                  <span className="flex items-center justify-center w-3 h-3 md:w-4 md:h-4 text-xs font-bold text-orange-700">{index + 1}</span>
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-800">{recommendation}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-4 md:mt-8 flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-gray-50 rounded-xl">
-            <div>
-              <p className="text-xs md:text-sm font-medium">Log your meal</p>
-              <p className="text-xs text-gray-500 hidden md:block">Get personalized nutrition analysis</p>
-            </div>
             <Button 
               onClick={handleStartEntry} 
-              className="bg-orange-600 hover:bg-orange-700 text-white text-xs md:text-sm py-1 px-2 md:py-2 md:px-3"
+              className="bg-amber-500 hover:bg-amber-600 text-white text-xs md:text-sm"
             >
               Add Meal <ArrowRight className="ml-1 md:ml-2 h-3 w-3 md:h-4 md:w-4" />
             </Button>
@@ -534,7 +512,7 @@ OVERALL_SCORE: [score]`;
                     <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-to-r from-orange-500 to-amber-500"
-                        style={{ width: `${caloriePercentage}%` }}
+                        style={{ width: `${Math.min(100, (calorieIntake / calorieGoal) * 100)}%` }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{Math.max(0, calorieGoal - calorieIntake)} calories remaining for today</p>
@@ -546,10 +524,13 @@ OVERALL_SCORE: [score]`;
                       <div key={category} className="space-y-1">
                         <div className="flex justify-between items-center">
                           <span className="text-sm">{category}</span>
-                          <span className={`text-sm font-medium ${getCategoryColor(score)}`}>{score}/100</span>
+                          <span className="text-sm font-medium text-orange-600">{score}/100</span>
                         </div>
                         <Progress value={score} className="h-2">
-                          <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
+                          <div 
+                            className="h-full bg-orange-500"
+                            style={{ width: `${score}%` }}
+                          ></div>
                         </Progress>
                       </div>
                     ))}
@@ -611,13 +592,6 @@ OVERALL_SCORE: [score]`;
                     onChange={(e) => setMealDescription(e.target.value)}
                   />
                   
-                  <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 flex items-start space-x-2">
-                    <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-800">
-                      For the most accurate analysis, include portion sizes, cooking methods, and all ingredients. Example: "2 scrambled eggs cooked in 1 tsp olive oil, 1 medium apple, 1 cup black coffee"
-                    </p>
-                  </div>
-                  
                   {mealHistory.length > 0 && (
                     <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                       <h4 className="text-sm font-medium text-blue-800 mb-1">Previous Meals Today:</h4>
@@ -640,11 +614,19 @@ OVERALL_SCORE: [score]`;
           
           <DialogFooter>
             {entryComplete ? (
-              <DialogClose asChild>
-                <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white">
-                  Close and Save Analysis
+              <div className="w-full space-y-2">
+                <Button 
+                  onClick={goToDetailedAnalysis} 
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  View Detailed Analysis
                 </Button>
-              </DialogClose>
+                <DialogClose asChild>
+                  <Button variant="outline" className="w-full">
+                    Close
+                  </Button>
+                </DialogClose>
+              </div>
             ) : (
               <div className="w-full flex space-x-2">
                 {currentStep > 0 ? (
@@ -702,7 +684,7 @@ OVERALL_SCORE: [score]`;
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-orange-500" />
+              <History className="h-5 w-5 mr-2 text-orange-500" />
               Your Meal History
             </DialogTitle>
             <DialogDescription>
@@ -726,26 +708,30 @@ OVERALL_SCORE: [score]`;
                 ).map(([date, meals]) => (
                   <div key={date} className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-100 p-3 font-medium text-sm flex justify-between items-center">
-                      <span>{formatDate(date)}</span>
-                      <span>{meals.reduce((sum, meal) => sum + meal.calories, 0)} kcal</span>
+                    <span className="text-orange-600 text-sm">
+                        {meals.reduce((sum, meal) => sum + meal.calories, 0)} kcal
+                      </span>
                     </div>
-                    <div>
+                    <div className="divide-y">
                       {meals.map((meal) => (
-                        <div key={meal.id} className="p-3 border-t">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-medium">{meal.type}</span>
-                            <span className="text-xs text-gray-500">{meal.time}</span>
+                        <div key={meal.id} className="p-3">
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center">
+                              <Badge className="mr-2 bg-orange-100 text-orange-800">
+                                {meal.type}
+                              </Badge>
+                              <span className="text-sm text-gray-500">{meal.time}</span>
+                            </div>
+                            <Badge className={`${
+                              meal.score >= 85 ? "bg-green-100 text-green-800" :
+                              meal.score >= 70 ? "bg-yellow-100 text-yellow-800" :
+                              "bg-red-100 text-red-800"
+                            }`}>
+                              Score: {meal.score}
+                            </Badge>
                           </div>
-                          <p className="text-sm text-gray-700 mb-2">{meal.description}</p>
-                          <div className="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>{meal.calories} kcal</span>
-                            <span className={getCategoryColor(meal.score)}>
-                              Score: {meal.score}/100
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-600 italic border-t pt-2 mt-1">
-                            {meal.analysis}
-                          </p>
+                          <p className="text-sm mb-2 line-clamp-2">{meal.description}</p>
+                          <p className="text-xs text-gray-500 line-clamp-2">{meal.analysis}</p>
                         </div>
                       ))}
                     </div>
@@ -757,11 +743,16 @@ OVERALL_SCORE: [score]`;
           
           <DialogFooter>
             <Button 
-              onClick={() => setShowMealHistory(false)}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={goToDetailedAnalysis} 
+              className="mr-2 bg-orange-600 hover:bg-orange-700 text-white"
             >
-              Close
+              Detailed Analysis
             </Button>
+            <DialogClose asChild>
+              <Button variant="outline">
+                Close
+              </Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
