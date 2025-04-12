@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Smile, MoreHorizontal, ArrowRight, Loader2, AlertTriangle, Settings, Activity, Brain, Coffee, Sun } from 'lucide-react';
+import { Smile, Settings, ArrowRight, Loader2, AlertTriangle, Activity, Brain, Coffee, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -38,7 +38,7 @@ const MoodAnalysisCard = () => {
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [lastAssessmentDate, setLastAssessmentDate] = useState("Today");
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
-  const [moodIcon, setMoodIcon] = useState(<Smile className="w-5 h-5 text-green-600" />);
+  const [moodIcon, setMoodIcon] = useState(<Smile className="w-5 h-5 text-emerald-500" />);
   const [moodCategories, setMoodCategories] = useState<{[key: string]: number}>({
     "Happiness": 68,
     "Energy": 65,
@@ -212,25 +212,25 @@ Optimism: [score]`;
         const iconName = iconMatch[1].trim().toLowerCase();
         switch (iconName) {
           case 'smile':
-            setMoodIcon(<Smile className="w-5 h-5 text-green-600" />);
+            setMoodIcon(<Smile className="w-5 h-5 text-emerald-500" />);
             break;
           case 'frown':
-            setMoodIcon(<AlertTriangle className="w-5 h-5 text-green-600" />);
+            setMoodIcon(<AlertTriangle className="w-5 h-5 text-emerald-500" />);
             break;
           case 'activity':
-            setMoodIcon(<Activity className="w-5 h-5 text-green-600" />);
+            setMoodIcon(<Activity className="w-5 h-5 text-emerald-500" />);
             break;
           case 'brain':
-            setMoodIcon(<Brain className="w-5 h-5 text-green-600" />);
+            setMoodIcon(<Brain className="w-5 h-5 text-emerald-500" />);
             break;
           case 'sun':
-            setMoodIcon(<Sun className="w-5 h-5 text-green-600" />);
+            setMoodIcon(<Sun className="w-5 h-5 text-emerald-500" />);
             break;
           case 'coffee':
-            setMoodIcon(<Coffee className="w-5 h-5 text-green-600" />);
+            setMoodIcon(<Coffee className="w-5 h-5 text-emerald-500" />);
             break;
           default:
-            setMoodIcon(<Smile className="w-5 h-5 text-green-600" />);
+            setMoodIcon(<Smile className="w-5 h-5 text-emerald-500" />);
         }
       }
       
@@ -329,16 +329,16 @@ Optimism: [score]`;
 
   // Get color for category score
   const getCategoryColor = (score: number): string => {
-    if (score >= 80) return 'text-green-500';
-    if (score >= 65) return 'text-green-600';
+    if (score >= 80) return 'text-emerald-500';
+    if (score >= 65) return 'text-emerald-600';
     if (score >= 50) return 'text-yellow-500';
     return 'text-red-500';
   };
 
   // Get background color for progress bar
   const getProgressColor = (score: number): string => {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 65) return 'bg-green-600';
+    if (score >= 80) return 'bg-emerald-500';
+    if (score >= 65) return 'bg-emerald-600';
     if (score >= 50) return 'bg-yellow-500';
     return 'bg-red-500';
   };
@@ -351,42 +351,32 @@ Optimism: [score]`;
     return "Needs attention";
   };
 
-  // Generate random dots (similar to HealthMetricsCard)
-  const generateDots = (count: number) => {
-    return Array.from({ length: count }, (_, i) => (
-      <span 
-        key={i} 
-        className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mx-0.5"
-      ></span>
-    ));
-  };
-
   return (
     <>
-      <Card className="border-0 shadow-lg rounded-3xl overflow-hidden h-full">
-        <CardHeader className="p-4 md:p-6 bg-gradient-to-r from-green-600 to-emerald-500">
+      <Card className="border-0 shadow-lg rounded-xl overflow-hidden h-full bg-zinc-900">
+        <CardHeader className="p-4 md:p-5 bg-gradient-to-r from-emerald-900 to-emerald-700 border-b border-emerald-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Smile className="h-5 w-5 md:h-6 md:w-6 text-white" />
+              <Smile className="h-5 w-5 md:h-6 md:w-6 text-emerald-300" />
               <h2 className="text-lg md:text-xl font-semibold text-white">Mood Analysis</h2>
             </div>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+            <Button variant="ghost" size="icon" className="text-emerald-300 hover:bg-emerald-800/50">
               <Settings className="w-4 h-4 md:w-5 md:h-5" />
             </Button>
           </div>
         </CardHeader>
         
-        <CardContent className="p-4 md:p-6">
-          <div className="flex items-start justify-between mb-4 md:mb-6">
+        <CardContent className="p-4 md:p-5 bg-zinc-900 text-zinc-100">
+          <div className="flex items-start justify-between mb-4 md:mb-5">
             <div>
               <div className="flex items-baseline">
-                <span className="text-3xl md:text-4xl font-bold">{moodScore}</span>
-                <span className="text-xs md:text-sm text-gray-500 ml-1">/100</span>
-                <Badge className="ml-2 md:ml-3 bg-green-100 text-green-800 hover:bg-green-200 text-xs">
+                <span className="text-3xl md:text-4xl font-bold text-zinc-100">{moodScore}</span>
+                <span className="text-xs md:text-sm text-zinc-400 ml-1">/100</span>
+                <Badge className="ml-2 md:ml-3 bg-emerald-900/50 text-emerald-300 hover:bg-emerald-800/70 text-xs border border-emerald-700">
                   {moodScore > 70 ? '+' : ''}{moodScore - 65}% from avg
                 </Badge>
               </div>
-              <h3 className="text-xs md:text-sm text-gray-500 mt-1">Mood Score • Last assessed: {lastAssessmentDate}</h3>
+              <h3 className="text-xs md:text-sm text-zinc-400 mt-1">Mood Score • Last assessed: {lastAssessmentDate}</h3>
               
               <div className="flex space-x-1 mt-2 md:mt-3">
                 {[...Array(10)].map((_, i) => (
@@ -394,7 +384,7 @@ Optimism: [score]`;
                     key={i} 
                     className="inline-block w-6 md:w-8 h-1.5 rounded-full" 
                     style={{ 
-                      backgroundColor: i < (moodScore / 10) ? '#16A34A' : '#DCFCE7'
+                      backgroundColor: i < (moodScore / 10) ? '#059669' : '#134E40'
                     }}
                   ></span>
                 ))}
@@ -404,13 +394,13 @@ Optimism: [score]`;
 
           <div className="grid grid-cols-2 gap-2 mb-4">
             {Object.entries(moodCategories).map(([category, score]) => (
-              <div key={category} className="border rounded-lg p-2">
+              <div key={category} className="border border-zinc-800 rounded-lg p-2 bg-zinc-800/50">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-gray-600">{category}</span>
+                  <span className="text-xs text-zinc-300">{category}</span>
                   <span className={`text-xs font-medium ${getCategoryColor(score)}`}>{score}</span>
                 </div>
                 <Progress value={score} className="h-1.5" 
-                  style={{backgroundColor: '#DCFCE7'}}
+                  style={{backgroundColor: '#134E40'}}
                 >
                   <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
                 </Progress>
@@ -418,31 +408,31 @@ Optimism: [score]`;
             ))}
           </div>
 
-          <Separator className="my-2 md:my-3" />
+          <Separator className="my-3 md:my-4 bg-zinc-800" />
           
           <div className="space-y-3 md:space-y-4 mt-3 md:mt-4">
-            <h3 className="font-semibold text-base md:text-lg">Recommendations</h3>
+            <h3 className="font-semibold text-base md:text-lg text-zinc-100">Recommendations</h3>
             
             {insights.map((insight, index) => (
-              <div key={index} className="flex items-start bg-green-50 p-2 md:p-3 rounded-xl">
-                <div className="flex-shrink-0 bg-green-100 p-1.5 md:p-2 rounded-full mr-2 md:mr-3">
-                  <span className="flex items-center justify-center w-3 h-3 md:w-4 md:h-4 text-xs font-bold text-green-700">{index + 1}</span>
+              <div key={index} className="flex items-start bg-emerald-900/20 p-2 md:p-3 rounded-lg border border-emerald-900/50">
+                <div className="flex-shrink-0 bg-emerald-800/70 p-1.5 md:p-2 rounded-full mr-2 md:mr-3">
+                  <span className="flex items-center justify-center w-3 h-3 md:w-4 md:h-4 text-xs font-bold text-emerald-300">{index + 1}</span>
                 </div>
                 <div>
-                  <p className="text-xs md:text-sm text-gray-800">{insight}</p>
+                  <p className="text-xs md:text-sm text-zinc-200">{insight}</p>
                 </div>
               </div>
             ))}
           </div>
           
-          <div className="mt-4 md:mt-6 flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-gray-50 rounded-xl">
+          <div className="mt-4 md:mt-6 flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-zinc-800/70 rounded-lg border border-zinc-700">
             <div>
-              <p className="text-xs md:text-sm font-medium">Take today's assessment</p>
-              <p className="text-xs text-gray-500 hidden md:block">Get personalized wellness recommendations</p>
+              <p className="text-xs md:text-sm font-medium text-zinc-100">Take today's assessment</p>
+              <p className="text-xs text-zinc-400 hidden md:block">Get personalized wellness recommendations</p>
             </div>
             <Button 
               onClick={handleStartAssessment} 
-              className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm py-1 px-2 md:py-2 md:px-3"
+              className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs md:text-sm py-1 px-2 md:py-2 md:px-3"
               disabled={isGeneratingQuestions}
             >
               {isGeneratingQuestions ? (
@@ -458,9 +448,9 @@ Optimism: [score]`;
       </Card>
 
       <Dialog open={showAssessment} onOpenChange={setShowAssessment}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-700 text-zinc-100">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-zinc-100">
               {assessmentComplete ? 
                 "Your Mood Assessment Results" : 
                 isGeneratingQuestions ? 
@@ -468,7 +458,7 @@ Optimism: [score]`;
                   `Question ${currentQuestion + 1} of ${questions.length}`
               }
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-zinc-400">
               {assessmentComplete 
                 ? "Based on your responses, we've analyzed your emotional state and generated personalized recommendations."
                 : isGeneratingQuestions
@@ -479,8 +469,8 @@ Optimism: [score]`;
 
           {isGeneratingQuestions && (
             <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-green-600 mb-4" />
-              <p className="text-center text-gray-500">
+              <Loader2 className="h-12 w-12 animate-spin text-emerald-500 mb-4" />
+              <p className="text-center text-zinc-400">
                 Generating your personalized assessment questions...
               </p>
             </div>
@@ -489,38 +479,38 @@ Optimism: [score]`;
           {assessmentComplete ? (
             <div className="space-y-4 py-4">
               <div className="text-center mb-6">
-                <div className="inline-block p-4 rounded-full bg-green-100 mb-2">
+                <div className="inline-block p-4 rounded-full bg-emerald-900/40 mb-2 border border-emerald-800/70">
                   {moodIcon}
                 </div>
-                <h3 className="text-2xl font-bold">Your Mood Score: {moodScore}</h3>
-                <p className="text-gray-500">
+                <h3 className="text-2xl font-bold text-zinc-100">Your Mood Score: {moodScore}</h3>
+                <p className="text-zinc-400">
                   {getMoodLabel(moodScore)} emotional state
                 </p>
               </div>
               
               {isGeneratingInsights ? (
                 <div className="flex flex-col items-center justify-center py-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-green-600 mb-2" />
-                  <p className="text-center text-gray-500">
+                  <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mb-2" />
+                  <p className="text-center text-zinc-400">
                     Analyzing your responses...
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="bg-green-50 p-4 rounded-lg mb-4">
-                    <h4 className="font-medium text-green-700 mb-2">AI Analysis</h4>
-                    <p className="text-sm text-gray-700">{aiAnalysis}</p>
+                  <div className="bg-emerald-900/20 p-4 rounded-lg mb-4 border border-emerald-900/50">
+                    <h4 className="font-medium text-emerald-400 mb-2">AI Analysis</h4>
+                    <p className="text-sm text-zinc-300">{aiAnalysis}</p>
                   </div>
                   
                   <div className="space-y-3 mb-4">
-                    <h4 className="font-medium">Emotional State Breakdown</h4>
+                    <h4 className="font-medium text-zinc-100">Emotional State Breakdown</h4>
                     {Object.entries(moodCategories).map(([category, score]) => (
                       <div key={category} className="space-y-1">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm">{category}</span>
+                          <span className="text-sm text-zinc-300">{category}</span>
                           <span className={`text-sm font-medium ${getCategoryColor(score)}`}>{score}/100</span>
                         </div>
-                        <Progress value={score} className="h-2">
+                        <Progress value={score} className="h-2 bg-zinc-800">
                           <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
                         </Progress>
                       </div>
@@ -528,13 +518,13 @@ Optimism: [score]`;
                   </div>
                   
                   <div>
-                    <h4 className="font-medium mb-2">Personalized Recommendations</h4>
+                    <h4 className="font-medium mb-2 text-zinc-100">Personalized Recommendations</h4>
                     {insights.map((insight, index) => (
-                      <div key={index} className="flex items-start bg-green-50 p-3 rounded-lg mb-2">
-                        <div className="flex-shrink-0 bg-green-100 p-2 rounded-full mr-3">
-                          <span className="flex items-center justify-center w-4 h-4 text-xs font-bold text-green-700">{index + 1}</span>
+                      <div key={index} className="flex items-start bg-emerald-900/20 p-3 rounded-lg mb-2 border border-emerald-900/50">
+                        <div className="flex-shrink-0 bg-emerald-800/70 p-2 rounded-full mr-3">
+                          <span className="flex items-center justify-center w-4 h-4 text-xs font-bold text-emerald-300">{index + 1}</span>
                         </div>
-                        <p className="text-sm text-gray-800">{insight}</p>
+                        <p className="text-sm text-zinc-300">{insight}</p>
                       </div>
                     ))}
                   </div>
@@ -545,14 +535,14 @@ Optimism: [score]`;
             !isGeneratingQuestions && (
               <>
                 <div className="py-4">
-                  <h3 className="text-lg font-medium mb-3">{questions[currentQuestion]}</h3>
+                  <h3 className="text-lg font-medium mb-3 text-zinc-100">{questions[currentQuestion]}</h3>
                   <Textarea
                     placeholder="Take a moment to reflect and express how you're feeling..."
-                    className="min-h-32 text-sm"
+                    className="min-h-32 text-sm bg-zinc-800 text-zinc-200 border-zinc-700 focus:border-emerald-700"
                     value={currentResponse}
                     onChange={handleResponseChange}
                   />
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-zinc-400 mt-2">
                     Feel free to express yourself honestly. The more details you share, the more personalized your recommendations will be.
                   </p>
                 </div>
@@ -566,13 +556,14 @@ Optimism: [score]`;
                       }
                     }}
                     disabled={currentQuestion === 0}
+                    className="border-zinc-700 text-zinc-900 hover:bg-zinc-800"
                   >
                     Previous
                   </Button>
                   <Button
                     onClick={handleSubmitResponse}
                     disabled={currentResponse.trim() === ""}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-emerald-700 hover:bg-emerald-600 text-white"
                   >
                     {currentQuestion === questions.length - 1 ? "Complete Assessment" : "Next Question"}
                   </Button>
@@ -584,7 +575,7 @@ Optimism: [score]`;
           <DialogFooter>
             {assessmentComplete && (
               <DialogClose asChild>
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+                <Button className="w-full bg-emerald-700 hover:bg-emerald-600 text-white">
                   Close and Save Results
                 </Button>
               </DialogClose>
@@ -592,7 +583,7 @@ Optimism: [score]`;
             
             {!assessmentComplete && !isGeneratingQuestions && (
               <DialogClose asChild>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full border-zinc-700 text-zinc-900 hover:bg-zinc-800">
                   Cancel Assessment
                 </Button>
               </DialogClose>

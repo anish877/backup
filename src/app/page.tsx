@@ -2,14 +2,14 @@
 import React from 'react';
 import NavBar from '../components/NavBar';
 import HealthImprovementChart from '../components/HealthImprovementChart';
-import CalendarCard from '../components/CalendarCard';
-import LifestyleCard from '../components/LifestyleCard';
-import HealthMetricsCard from '../components/HealthMetricsCard';
+import WaterTracker from '../components/WaterTracker';
+import MealTrackingCard from '../components/MealTrackingCard';
+import MoodAnalysisCard from '../components/MoodAnalysisCard';
 import SleepTrackingCard from '../components/SleepTrackingCard';
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-zinc-100 flex flex-col">
       
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
@@ -17,16 +17,16 @@ const Index = () => {
             <HealthImprovementChart />
           </div>
           <div className="md:col-span-2">
-            <CalendarCard />
+            <WaterTracker />
           </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 ">
           <div>
-            <LifestyleCard />
+            <MealTrackingCard />
           </div>
           <div>
-            <HealthMetricsCard />
+            <MoodAnalysisCard />
           </div>
           <div>
             <SleepTrackingCard />
