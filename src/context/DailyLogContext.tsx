@@ -235,6 +235,7 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
                                         } else if(notification.type === 'meal') {
                                             setLog('meal'); // Map 'meal' to 'nutrition' when setting log
                                         } else {
+                                            //@ts-expect-error: no need here
                                             setLog(notification.type);
                                         }
                                         toast.dismiss(t.id);

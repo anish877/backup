@@ -34,13 +34,33 @@ import {
   Cell
 } from 'recharts';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
+
+interface CategoryData {
+  Happiness: number;
+  Energy: number;
+  Focus: number;
+  Calm: number;
+  Optimism: number;
+  [key: string]: number;
+}
 
 interface Assessment {
+  id: string;
   date: string;
-  score: number;
-  categories: {[key: string]: number};
+  finalScore: number;
+  categories?: CategoryData;
+  happiness: number;
+  energy: number;
+  focus: number;
+  calm: number;
+  optimism: number;
+  dailyRecommndations?: string[];
   responses?: Record<number, string>;
   questions?: string[];
+  dailyLog?: {
+    date: string;
+  };
 }
 
 const MoodAnalysisDetails = () => {
@@ -48,30 +68,97 @@ const MoodAnalysisDetails = () => {
   const [assessmentHistory, setAssessmentHistory] = useState<Assessment[]>([]);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Fetch mood history from API
   useEffect(() => {
-    // Load assessment history from localStorage
-    const loadHistory = () => {
+    const fetchMoodHistory = async () => {
       try {
-        const historyData = localStorage.getItem('moodAssessmentHistory');
-        if (historyData) {
-          const parsedData = JSON.parse(historyData) as Assessment[];
-          setAssessmentHistory(parsedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setLoading(true);
+        const response = await axios.get(`http://localhost:3001/api/mood/history`,{withCredentials:true});
+        
+        if (response.data.success) {
+          // Transform the data to match the expected format
+          const transformedData = response.data.data.map((mood: any) => {
+            // Create a categories object from individual category scores
+            const categories = {
+              Happiness: mood.happiness,
+              Energy: mood.energy,
+              Focus: mood.focus,
+              Calm: mood.calm,
+              Optimism: mood.optimism
+            };
+            
+            return {
+              ...mood,
+              categories,
+              // Use the mood's date or the daily log date
+              date: mood.date || (mood.dailyLog ? mood.dailyLog.date : new Date().toISOString()),
+              // Use finalScore as score
+              score: mood.finalScore
+            };
+          });
+          
+          // Sort by date, newest first
+          const sortedData = transformedData.sort((a: Assessment, b: Assessment) => 
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+          
+          setAssessmentHistory(sortedData);
           
           // Set the most recent assessment as selected
-          if (parsedData.length > 0) {
-            setSelectedAssessment(parsedData[0]);
+          if (sortedData.length > 0) {
+            setSelectedAssessment(sortedData[0]);
           }
+        } else {
+          setError('Failed to load mood history');
         }
       } catch (error) {
-        console.error("Error loading assessment history:", error);
+        console.error("Error fetching mood history:", error);
+        setError('Failed to connect to the server');
       } finally {
         setLoading(false);
       }
     };
 
-    loadHistory();
+    fetchMoodHistory();
   }, []);
+
+  // Get mood details by ID
+  const fetchMoodDetails = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`http://localhost:3001/api/mood/${id}`,{withCredentials:true});
+      
+      if (response.data.success) {
+        const moodData = response.data.data;
+        
+        // Transform to match expected format
+        const categories = {
+          Happiness: moodData.happiness,
+          Energy: moodData.energy,
+          Focus: moodData.focus,
+          Calm: moodData.calm,
+          Optimism: moodData.optimism
+        };
+        
+        const transformedMood = {
+          ...moodData,
+          categories,
+          score: moodData.finalScore,
+          date: moodData.date || (moodData.dailyLog ? moodData.dailyLog.date : new Date().toISOString())
+        };
+        
+        setSelectedAssessment(transformedMood);
+      } else {
+        console.error('Failed to fetch mood details');
+      }
+    } catch (error) {
+      console.error("Error fetching mood details:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get icon based on mood score
   const getMoodIcon = (score: number) => {
@@ -123,8 +210,12 @@ const MoodAnalysisDetails = () => {
       const date = new Date(assessment.date);
       return {
         date: `${date.getMonth() + 1}/${date.getDate()}`,
-        score: assessment.score,
-        ...assessment.categories
+        score: assessment.score || assessment.finalScore,
+        Happiness: assessment.happiness,
+        Energy: assessment.energy,
+        Focus: assessment.focus,
+        Calm: assessment.calm,
+        Optimism: assessment.optimism
       };
     });
   };
@@ -133,7 +224,16 @@ const MoodAnalysisDetails = () => {
   const preparePieData = () => {
     if (!selectedAssessment) return [];
     
-    return Object.entries(selectedAssessment.categories).map(([category, value]) => ({
+    // Use either categories object or individual properties
+    const categories = selectedAssessment.categories || {
+      Happiness: selectedAssessment.happiness,
+      Energy: selectedAssessment.energy,
+      Focus: selectedAssessment.focus,
+      Calm: selectedAssessment.calm,
+      Optimism: selectedAssessment.optimism
+    };
+    
+    return Object.entries(categories).map(([category, value]) => ({
       name: category,
       value,
       color: value >= 80 ? '#3b82f6' : value >= 65 ? '#2563eb' : value >= 50 ? '#eab308' : '#ef4444'
@@ -147,7 +247,11 @@ const MoodAnalysisDetails = () => {
 
   // Handle selecting an assessment from history
   const handleSelectAssessment = (assessment: Assessment) => {
-    setSelectedAssessment(assessment);
+    if (assessment.id) {
+      fetchMoodDetails(assessment.id);
+    } else {
+      setSelectedAssessment(assessment);
+    }
   };
 
   // Group assessments by date
@@ -183,6 +287,19 @@ const MoodAnalysisDetails = () => {
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           </div>
+        ) : error ? (
+          <Card className="border shadow-lg rounded-xl overflow-hidden">
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto mb-4 p-4 rounded-full bg-red-50 inline-block">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h3>
+              <p className="text-gray-600 mb-6">{error}</p>
+              <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
         ) : assessmentHistory.length === 0 ? (
           <Card className="border shadow-lg rounded-xl overflow-hidden">
             <CardContent className="p-8 text-center">
@@ -224,20 +341,20 @@ const MoodAnalysisDetails = () => {
                               key={assessmentIndex}
                               onClick={() => handleSelectAssessment(assessment)}
                               className={`p-4 cursor-pointer hover:bg-blue-50/50 transition-colors ${
-                                selectedAssessment && selectedAssessment.date === assessment.date ? 'bg-blue-100' : ''
+                                selectedAssessment && selectedAssessment.id === assessment.id ? 'bg-blue-100' : ''
                               }`}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
                                   <div className="p-2 bg-blue-100 rounded-full">
-                                    {getMoodIcon(assessment.score)}
+                                    {getMoodIcon(assessment.score || assessment.finalScore)}
                                   </div>
                                   <div>
                                     <div className="flex items-center space-x-2">
                                       <Badge className="bg-blue-100 text-blue-800 border border-blue-200 text-xs">
-                                        {getMoodLabel(assessment.score)}
+                                        {getMoodLabel(assessment.score || assessment.finalScore)}
                                       </Badge>
-                                      <span className="font-medium text-gray-900">{assessment.score}</span>
+                                      <span className="font-medium text-gray-900">{assessment.score || assessment.finalScore}</span>
                                     </div>
                                     <p className="text-xs text-gray-600 mt-1">{formatDate(assessment.date)}</p>
                                   </div>
@@ -280,9 +397,11 @@ const MoodAnalysisDetails = () => {
                               <p className="text-sm text-gray-600">{formatDate(selectedAssessment.date)}</p>
                             </div>
                             <div className="flex items-center">
-                              <span className="text-3xl font-bold text-gray-900 mr-2">{selectedAssessment.score}</span>
+                              <span className="text-3xl font-bold text-gray-900 mr-2">
+                                {selectedAssessment.score || selectedAssessment.finalScore}
+                              </span>
                               <Badge className="bg-blue-100 text-blue-800 border border-blue-200">
-                                {getMoodLabel(selectedAssessment.score)}
+                                {getMoodLabel(selectedAssessment.score || selectedAssessment.finalScore)}
                               </Badge>
                             </div>
                           </div>
@@ -300,14 +419,14 @@ const MoodAnalysisDetails = () => {
                             <div>
                               <h4 className="font-medium text-gray-700 mb-3">Category Breakdown</h4>
                               <div className="space-y-3">
-                                {Object.entries(selectedAssessment.categories).map(([category, score]) => (
-                                  <div key={category} className="space-y-1">
+                                {preparePieData().map(({ name, value }) => (
+                                  <div key={name} className="space-y-1">
                                     <div className="flex justify-between items-center">
-                                      <span className="text-sm text-gray-700">{category}</span>
-                                      <span className={`text-sm font-medium ${getCategoryColor(score)}`}>{score}/100</span>
+                                      <span className="text-sm text-gray-700">{name}</span>
+                                      <span className={`text-sm font-medium ${getCategoryColor(value)}`}>{value}/100</span>
                                     </div>
-                                    <Progress value={score} className="h-2 bg-gray-200">
-                                      <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
+                                    <Progress value={value} className="h-2 bg-gray-200">
+                                      <div className={`h-full ${getProgressColor(value)}`} style={{width: `${value}%`}}></div>
                                     </Progress>
                                   </div>
                                 ))}
@@ -341,28 +460,49 @@ const MoodAnalysisDetails = () => {
                           </div>
                           
                           {/* Show AI Generated Recommendations if available */}
-                          {selectedAssessment.responses && (
+                          {selectedAssessment.dailyRecommndations && selectedAssessment.dailyRecommndations.length > 0 && (
                             <div className="mt-6">
                               <h4 className="font-medium text-gray-700 mb-3">Recommended Actions</h4>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                  <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full mb-2">
-                                    <Brain className="h-4 w-4 text-blue-500" />
+                                {selectedAssessment.dailyRecommndations.slice(0, 3).map((recommendation, index) => (
+                                  <div key={index} className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full mb-2">
+                                      {index === 0 ? (
+                                        <Brain className="h-4 w-4 text-blue-500" />
+                                      ) : index === 1 ? (
+                                        <Sun className="h-4 w-4 text-blue-500" />
+                                      ) : (
+                                        <Coffee className="h-4 w-4 text-blue-500" />
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-gray-700">{recommendation}</p>
                                   </div>
-                                  <p className="text-sm text-gray-700">Practice mindfulness meditation for 10 minutes</p>
-                                </div>
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                  <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full mb-2">
-                                    <Sun className="h-4 w-4 text-blue-500" />
-                                  </div>
-                                  <p className="text-sm text-gray-700">Take a 15-minute walk in natural light</p>
-                                </div>
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                  <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full mb-2">
-                                    <Coffee className="h-4 w-4 text-blue-500" />
-                                  </div>
-                                  <p className="text-sm text-gray-700">Connect with a friend or family member today</p>
-                                </div>
+                                ))}
+                                
+                                {/* Use default recommendations if we don't have enough */}
+                                {[...Array(Math.max(0, 3 - (selectedAssessment.dailyRecommndations?.length || 0)))].map((_, index) => {
+                                  const defaultRecommendations = [
+                                    "Practice mindfulness meditation for 10 minutes",
+                                    "Take a 15-minute walk in natural light",
+                                    "Connect with a friend or family member today"
+                                  ];
+                                  const actualIndex = (selectedAssessment.dailyRecommndations?.length || 0) + index;
+                                  
+                                  return (
+                                    <div key={`default-${index}`} className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                      <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full mb-2">
+                                        {actualIndex === 0 ? (
+                                          <Brain className="h-4 w-4 text-blue-500" />
+                                        ) : actualIndex === 1 ? (
+                                          <Sun className="h-4 w-4 text-blue-500" />
+                                        ) : (
+                                          <Coffee className="h-4 w-4 text-blue-500" />
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-700">{defaultRecommendations[actualIndex]}</p>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -462,6 +602,20 @@ const MoodAnalysisDetails = () => {
                               <p className="text-gray-600">
                                 Detailed responses are not available for this assessment.
                               </p>
+                            </div>
+                          )}
+                          
+                          {/* Display recommendations if available */}
+                          {selectedAssessment.dailyRecommndations && selectedAssessment.dailyRecommndations.length > 0 && (
+                            <div className="mt-6">
+                              <h4 className="font-medium text-gray-700 mb-3">Recommended Actions</h4>
+                              <div className="space-y-3">
+                                {selectedAssessment.dailyRecommndations.map((recommendation, index) => (
+                                  <div key={index} className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <p className="text-sm text-gray-700">{index + 1}. {recommendation}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </CardContent>
