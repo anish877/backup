@@ -148,7 +148,7 @@ const UserProfile = () => {
   };
 
   if (!isOnboarded) {
-    return null; // This will prevent flash before redirect
+    return null; 
   }
 
   return (

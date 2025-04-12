@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,12 @@ const mealQualityOptions = ["Excellent", "Good", "Average", "Poor", "Bad"];
 
 const DailyLog = () => {
   const router = useRouter();
+  const [todayStats, setTodayStats] = useState({
+    waterIntake: 0,
+    steps: 0,
+    sleepHours: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -41,9 +47,51 @@ const DailyLog = () => {
     },
   });
 
+  useEffect(() => {
+    const fetchTodayLog = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND}/dailyLog/today`,
+          {
+            withCredentials: true, // to send cookies/session
+          }
+        );
+        
+        if (response.data.success && response.data.data) {
+          const logData = response.data.data;
+          
+          // Update the stats display
+          setTodayStats({
+            waterIntake: logData.waterIntake,
+            steps: logData.steps,
+            sleepHours: logData.sleepHours
+          });
+
+          // Pre-fill the form with today's data
+          form.reset({
+            waterIntake: logData.waterIntake,
+            mood: logData.mood,
+            weight: logData.weight,
+            sleepHours: logData.sleepHours,
+            steps: logData.steps,
+            mealQuality: logData.mealQuality,
+            symptoms: logData.symptoms || '',
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching today's log:", error);
+        // No need to show error toast here as not having a log is normal
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTodayLog();
+  }, [form]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_BACKEND}/dailyLog`,
         values,
@@ -51,11 +99,18 @@ const DailyLog = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          withCredentials: true, // if you need to send cookies/session
+          withCredentials: true,
         }
       );
-      console.log(response.data)
+      
       if (response.data.success) {
+        // Update the stats with the new values
+        setTodayStats({
+          waterIntake: values.waterIntake,
+          steps: values.steps,
+          sleepHours: values.sleepHours
+        });
+        
         customToast.success("Your daily health data has been recorded.");
         router.push('/dashboard');
       } else {
@@ -69,7 +124,6 @@ const DailyLog = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white text-gray-800 p-6 rounded-lg mb-6 border border-gray-100 shadow-sm">
           <div className="flex items-center mb-4">
@@ -252,18 +306,24 @@ const DailyLog = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
-              <h4 className="text-3xl font-bold text-orange-500">0L</h4>
+              <h4 className="text-3xl font-bold text-orange-500">{todayStats.waterIntake}L</h4>
               <p className="text-gray-600">Water Today</p>
             </div>
             <div className="p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
-              <h4 className="text-3xl font-bold text-orange-500">0</h4>
+              <h4 className="text-3xl font-bold text-orange-500">{todayStats.steps}</h4>
               <p className="text-gray-600">Steps</p>
             </div>
             <div className="p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
-              <h4 className="text-3xl font-bold text-orange-500">0h</h4>
+              <h4 className="text-3xl font-bold text-orange-500">{todayStats.sleepHours}h</h4>
               <p className="text-gray-600">Sleep Last Night</p>
             </div>
           </div>
+          
+          {isLoading && (
+            <div className="text-center py-4 text-gray-500">
+              Loading your stats...
+            </div>
+          )}
         </div>
       </div>
     </div>
