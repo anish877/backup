@@ -35,6 +35,20 @@ import {
   Cell
 } from 'recharts';
 import { useRouter } from 'next/navigation';
+import axios from 'axios'; // Make sure to install axios
+
+interface Sleep {
+  id: string;
+  dailyLogId: string;
+  finalScore: number;
+  quality: number;
+  duration: number;
+  consistency: number;
+  environment: number;
+  habits: number;
+  dailyRecommendations?: string[];
+  date: string;
+}
 
 interface Assessment {
   date: string;
@@ -48,93 +62,108 @@ interface Assessment {
 
 const SleepAnalysisDetails = () => {
   const router = useRouter();
+  const [sleepData, setSleepData] = useState<Sleep[]>([]);
   const [assessmentHistory, setAssessmentHistory] = useState<Assessment[]>([]);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load assessment history from localStorage
-    const loadHistory = () => {
+    // Fetch sleep data from backend API
+    const fetchSleepData = async () => {
       try {
-        const historyData = localStorage.getItem('sleepAssessmentHistory');
-        if (historyData) {
-          const parsedData = JSON.parse(historyData) as Assessment[];
-          setAssessmentHistory(parsedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setLoading(true);
+        
+        // Get last 30 days of sleep data
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+        const endDate = new Date().toISOString().split('T')[0];
+        
+        const response = await axios.get('http://localhost:3001'+`/api/sleep`,{withCredentials:true});
+        
+        if (response.data && response.data.sleep) {
+          const sleepEntries = response.data.sleep;
+          setSleepData(sleepEntries);
+          
+          // Convert sleep data to assessment format
+          const assessments = sleepEntries.map((sleep: Sleep) => convertToAssessment(sleep));
+          setAssessmentHistory(assessments.sort((a: { date: string | number | Date; }, b: { date: string | number | Date; }) => new Date(b.date).getTime() - new Date(a.date).getTime()));
           
           // Set the most recent assessment as selected
-          if (parsedData.length > 0) {
-            setSelectedAssessment(parsedData[0]);
+          if (assessments.length > 0) {
+            setSelectedAssessment(assessments[0]);
           }
         } else {
-          // For demo purposes, create sample data if none exists
-          const sampleData = generateSampleData();
-          setAssessmentHistory(sampleData);
-          if (sampleData.length > 0) {
-            setSelectedAssessment(sampleData[0]);
-          }
+          // If no data exists, we'll show empty state
+          setAssessmentHistory([]);
+          setSelectedAssessment(null);
         }
-      } catch (error) {
-        console.error("Error loading assessment history:", error);
-        // For demo purposes, create sample data if there's an error
-        const sampleData = generateSampleData();
-        setAssessmentHistory(sampleData);
-        if (sampleData.length > 0) {
-          setSelectedAssessment(sampleData[0]);
-        }
+      } catch (err) {
+        console.error("Error loading sleep data:", err);
+        setError("Failed to fetch sleep data. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
 
-    loadHistory();
+    fetchSleepData();
   }, []);
 
-  // Generate sample data for demo purposes
-  const generateSampleData = (): Assessment[] => {
-    const today = new Date();
-    const data: Assessment[] = [];
-    
-    for (let i = 0; i < 10; i++) {
-      const date = new Date();
-      date.setDate(today.getDate() - i);
+  // Convert sleep data to assessment format
+  const convertToAssessment = (sleep: Sleep): Assessment => {
+    return {
+      date: sleep.date,
+      score: sleep.finalScore,
+      categories: {
+        "Quality": sleep.quality,
+        "Duration": sleep.duration,
+        "Consistency": sleep.consistency,
+        "Environment": sleep.environment,
+        "Habits": sleep.habits
+      },
+      analysis: "Your sleep patterns show varying quality with some room for improvement. Consider following the recommendations to improve your sleep health.",
+      insights: sleep.dailyRecommendations || [
+        "Dim lights 1 hour before bedtime",
+        "Keep bedroom temperature between 60-67°F",
+        "Avoid caffeine after 2pm"
+      ],
+      // These would come from a separate assessment API in a real application
+      questions: [
+        "How many hours did you sleep last night?",
+        "How long did it take you to fall asleep last night?",
+        "Did you wake up during the night?",
+        "How did you feel when you woke up this morning?",
+        "Did you use electronic devices before sleeping?"
+      ],
+      responses: {
+        0: "7-8 hours (optimal sleep duration)",
+        1: "15-30 minutes (slightly delayed)",
+        2: "Once briefly (minimal disruption)",
+        3: "Somewhat tired (incomplete recovery)",
+        4: "30-60 minutes (significant exposure)"
+      }
+    };
+  };
+
+  // Fetch specific sleep entry details
+  const fetchSleepDetails = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/sleep/${id}`);
       
-      const baseScore = 65 + Math.floor(Math.random() * 25);
-      const variability = Math.floor(Math.random() * 15) - 7; // -7 to +7
-      
-      data.push({
-        date: date.toISOString(),
-        score: Math.min(100, Math.max(0, baseScore + variability)),
-        categories: {
-          "Quality": Math.min(100, Math.max(0, baseScore + Math.floor(Math.random() * 15) - 7)),
-          "Duration": Math.min(100, Math.max(0, baseScore + Math.floor(Math.random() * 15) - 7)),
-          "Consistency": Math.min(100, Math.max(0, baseScore + Math.floor(Math.random() * 15) - 7)),
-          "Environment": Math.min(100, Math.max(0, baseScore + Math.floor(Math.random() * 15) - 7)),
-          "Habits": Math.min(100, Math.max(0, baseScore + Math.floor(Math.random() * 15) - 7))
-        },
-        analysis: "Your sleep patterns show moderate quality with some room for improvement. Your sleep duration was adequate, but environmental factors may be affecting your deep sleep phases.",
-        insights: [
-          "Dim lights 1 hour before bedtime",
-          "Keep bedroom temperature between 60-67°F",
-          "Avoid caffeine after 2pm"
-        ],
-        questions: [
-          "How many hours did you sleep last night?",
-          "How long did it take you to fall asleep last night?",
-          "Did you wake up during the night?",
-          "How did you feel when you woke up this morning?",
-          "Did you use electronic devices before sleeping?"
-        ],
-        responses: {
-          0: "7-8 hours (optimal sleep duration)",
-          1: "15-30 minutes (slightly delayed)",
-          2: "Once briefly (minimal disruption)",
-          3: "Somewhat tired (incomplete recovery)",
-          4: "30-60 minutes (significant exposure)"
-        }
-      });
+      if (response.data && response.data.sleep) {
+        const sleep = response.data.sleep;
+        const assessment = convertToAssessment(sleep);
+        setSelectedAssessment(assessment);
+      }
+    } catch (err) {
+      console.error("Error fetching sleep details:", err);
+      setError("Failed to fetch sleep details. Please try again later.");
+    } finally {
+      setLoading(false);
     }
-    
-    return data;
   };
 
   // Get icon based on sleep score
@@ -211,7 +240,16 @@ const SleepAnalysisDetails = () => {
 
   // Handle selecting an assessment from history
   const handleSelectAssessment = (assessment: Assessment) => {
-    setSelectedAssessment(assessment);
+    // Find the sleep entry ID for this assessment
+    const sleepEntry = sleepData.find(sleep => 
+      new Date(sleep.date).toISOString() === new Date(assessment.date).toISOString()
+    );
+    
+    if (sleepEntry && sleepEntry.id) {
+      fetchSleepDetails(sleepEntry.id);
+    } else {
+      setSelectedAssessment(assessment);
+    }
   };
 
   // Group assessments by date
@@ -247,16 +285,29 @@ const SleepAnalysisDetails = () => {
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           </div>
+        ) : error ? (
+          <Card className="border shadow-lg rounded-xl overflow-hidden">
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto mb-4 p-4 rounded-full bg-red-50 inline-block">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Error</h3>
+              <p className="text-gray-600 mb-6">{error}</p>
+              <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
         ) : assessmentHistory.length === 0 ? (
           <Card className="border shadow-lg rounded-xl overflow-hidden">
             <CardContent className="p-8 text-center">
               <div className="mx-auto mb-4 p-4 rounded-full bg-blue-50 inline-block">
                 <Activity className="h-8 w-8 text-blue-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No Assessment Data</h3>
-              <p className="text-gray-600 mb-6">Complete your first sleep assessment to see detailed analytics and trends.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No Sleep Data</h3>
+              <p className="text-gray-600 mb-6">Track your sleep to see detailed analytics and trends.</p>
               <Button onClick={goBack} className="bg-blue-600 hover:bg-blue-700 text-white">
-                Go Back to Take Assessment
+                Go Back to Dashboard
               </Button>
             </CardContent>
           </Card>
@@ -268,7 +319,7 @@ const SleepAnalysisDetails = () => {
                 <CardHeader className="p-4 bg-blue-50 border-b border-blue-100">
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-5 w-5 text-blue-500" />
-                    <h2 className="text-lg font-semibold text-gray-900">Assessment History</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Sleep History</h2>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -409,11 +460,11 @@ const SleepAnalysisDetails = () => {
                           </div>
                           
                           {/* Show AI Generated Recommendations if available */}
-                          {selectedAssessment.insights && (
+                          {selectedAssessment.insights && selectedAssessment.insights.length > 0 && (
                             <div className="mt-6">
                               <h4 className="font-medium text-gray-700 mb-3">Recommended Actions</h4>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                {selectedAssessment.insights.map((insight, index) => (
+                                {selectedAssessment.insights.slice(0, 3).map((insight, index) => (
                                   <div key={index} className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                                     <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full mb-2">
                                       {index === 0 ? <Moon className="h-4 w-4 text-blue-500" /> : 

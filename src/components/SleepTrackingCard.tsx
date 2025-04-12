@@ -1,3 +1,4 @@
+// Modified SleepTrackingCard.tsx to work with the Express API
 "use client";
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -18,9 +19,48 @@ import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import axios from 'axios';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
+
+// API service for sleep data
+const apiService = {
+  // Get latest sleep data
+  getLatestSleepData: async () => {
+    try {
+      const response = await axios.get('http://localhost:3001'+'/api/sleep',{withCredentials: true});
+      return response.data.sleep && response.data.sleep.length > 0 
+        ? response.data.sleep[0] 
+        : null;
+    } catch (error) {
+      console.error('Error fetching sleep data:', error);
+      return null;
+    }
+  },
+  
+  // Get sleep data for specific date
+  getSleepDataByDate: async (date: string) => {
+    try {
+      const response = await axios.get('http://localhost:3001'+`/api/sleep?date=${date}`, {withCredentials: true});
+      return response.data.sleep;
+    } catch (error) {
+      console.error('Error fetching sleep data by date:', error);
+      return null;
+    }
+  },
+  
+  // Save sleep data
+  saveSleepData: async (sleepData: any) => {
+    try {
+      const response = await axios.post('http://localhost:3001'+'/api/sleep', sleepData, {withCredentials: true});
+      return response.data.sleep;
+    } catch (error) {
+      console.error('Error saving sleep data:', error);
+      throw error;
+    }
+  }
+};
 
 const SleepTrackingCard = () => {
   const router = useRouter();
@@ -58,39 +98,34 @@ const SleepTrackingCard = () => {
   ];
 
   useEffect(() => {
-    // Load most recent assessment and entire history from localStorage
-    const loadAssessmentData = () => {
+    // Load most recent assessment from API
+    const loadAssessmentData = async () => {
       try {
-        const historyData = localStorage.getItem('sleepAssessmentHistory');
-        if (historyData) {
-          const parsedData = JSON.parse(historyData);
-          setAssessmentHistory(parsedData);
+        const latestSleepData = await apiService.getLatestSleepData();
+        
+        if (latestSleepData) {
+          setSleepScore(latestSleepData.finalScore);
+          setSleepCategories({
+            "Quality": latestSleepData.quality,
+            "Duration": latestSleepData.duration,
+            "Consistency": latestSleepData.consistency,
+            "Environment": latestSleepData.environment,
+            "Habits": latestSleepData.habits
+          });
+          setInsights(latestSleepData.dailyRecommndations || insights);
           
-          if (parsedData.length > 0) {
-            // Sort by date and get the most recent
-            const sortedData = parsedData.sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-            );
-            const latestAssessment = sortedData[0];
-            
-            setSleepScore(latestAssessment.score);
-            setSleepCategories(latestAssessment.categories);
-            setInsights(latestAssessment.insights || insights);
-            setAiAnalysis(latestAssessment.analysis || "");
-            
-            // Format date
-            const assessmentDate = new Date(latestAssessment.date);
-            const now = new Date();
-            
-            // If today, show "Today"
-            if (assessmentDate.toDateString() === now.toDateString()) {
-              setLastAssessmentDate("Today");
-            } else {
-              setLastAssessmentDate(assessmentDate.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric'
-              }));
-            }
+          // Format date
+          const assessmentDate = new Date(latestSleepData.date);
+          const now = new Date();
+          
+          // If today, show "Today"
+          if (assessmentDate.toDateString() === now.toDateString()) {
+            setLastAssessmentDate("Today");
+          } else {
+            setLastAssessmentDate(assessmentDate.toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric'
+            }));
           }
         }
       } catch (error) {
@@ -299,34 +334,35 @@ const SleepTrackingCard = () => {
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
       
       // Set AI analysis
+      let analysis = "Based on your sleep data, you had a moderately restful night with some areas for improvement.";
       if (analysisMatch && analysisMatch[1]) {
-        setAiAnalysis(analysisMatch[1].trim());
-      } else {
-        setAiAnalysis("Based on your sleep data, you had a moderately restful night with some areas for improvement. Your sleep patterns indicate you could benefit from adjustments to your sleep environment and pre-bedtime routine.");
+        analysis = analysisMatch[1].trim();
       }
+      setAiAnalysis(analysis);
       
       // Set recommendations
+      let recommendations = [
+        "Dim all lights one hour before your target bedtime tonight",
+        "Drink chamomile tea 30 minutes before bed to promote relaxation",
+        "Set your bedroom temperature between 60-67°F for optimal sleep"
+      ];
+      
       if (recommendationsMatch && recommendationsMatch[1]) {
         const recLines = recommendationsMatch[1].trim().split('\n').filter(line => line.trim() !== '');
         if (recLines.length >= 3) {
-          setInsights(recLines.slice(0, 3));
-        } else {
-          setInsights([
-            "Dim all lights one hour before your target bedtime tonight",
-            "Drink chamomile tea 30 minutes before bed to promote relaxation",
-            "Set your bedroom temperature between 60-67°F for optimal sleep"
-          ]);
+          recommendations = recLines.slice(0, 3);
         }
-      } else {
-        setInsights([
-          "Dim all lights one hour before your target bedtime tonight",
-          "Drink chamomile tea 30 minutes before bed to promote relaxation",
-          "Set your bedroom temperature between 60-67°F for optimal sleep"
-        ]);
       }
+      setInsights(recommendations);
       
-      // Set category scores and calculate sleep score as their average
-      let categoryScores: {[key: string]: number} = {};
+      // Set category scores
+      let categoryScores: {[key: string]: number} = {
+        "Quality": 65,
+        "Duration": 65,
+        "Consistency": 65,
+        "Environment": 65,
+        "Habits": 65
+      };
       
       if (categoryScoresMatch && categoryScoresMatch[1]) {
         const scoreLines = categoryScoresMatch[1].trim().split('\n');
@@ -340,14 +376,6 @@ const SleepTrackingCard = () => {
             }
           }
         });
-        
-        if (Object.keys(categoryScores).length < 5) {
-          // If we don't have all 5 categories, calculate them ourselves
-          categoryScores = generateCategoryScores(userAnswers);
-        }
-      } else {
-        // Calculate category scores ourselves if not provided
-        categoryScores = generateCategoryScores(userAnswers);
       }
       
       // Set the category scores
@@ -361,8 +389,16 @@ const SleepTrackingCard = () => {
       setSleepScore(averageScore);
       setLastAssessmentDate("Today");
       
-      // Save assessment to localStorage
-      saveAssessmentToHistory(userAnswers, averageScore, categoryScores);
+      // Save sleep data to API
+      await apiService.saveSleepData({
+        finalScore: averageScore,
+        quality: categoryScores["Quality"],
+        duration: categoryScores["Duration"],
+        consistency: categoryScores["Consistency"],
+        environment: categoryScores["Environment"],
+        habits: categoryScores["Habits"],
+        dailyRecommendations: recommendations
+      });
       
     } catch (error) {
       console.error("Error generating insights:", error);
@@ -391,156 +427,24 @@ const SleepTrackingCard = () => {
       const defaultAverage = Math.round(defaultTotal / Object.values(defaultCategories).length);
       setSleepScore(defaultAverage);
       
-      // Save default assessment to localStorage
-      saveAssessmentToHistory({}, defaultAverage, defaultCategories);
+      // Try to save default data to API
+      try {
+        await apiService.saveSleepData({
+          finalScore: defaultAverage,
+          quality: defaultCategories["Quality"],
+          duration: defaultCategories["Duration"],
+          consistency: defaultCategories["Consistency"],
+          environment: defaultCategories["Environment"],
+          habits: defaultCategories["Habits"],
+          dailyRecommendations: insights
+        });
+      } catch (saveError) {
+        console.error("Error saving default sleep data:", saveError);
+      }
       
     } finally {
       setIsGeneratingInsights(false);
     }
-  };
-
-  // Save assessment to localStorage history
-  const saveAssessmentToHistory = (
-    userAnswers: Record<number, string>, 
-    score: number, 
-    categories: {[key: string]: number}
-  ) => {
-    try {
-      // Create new assessment object
-      const newAssessment = {
-        date: new Date().toISOString(),
-        score,
-        categories,
-        insights,
-        analysis: aiAnalysis,
-        questions,
-        responses: userAnswers
-      };
-      console.log(newAssessment)
-      // Get existing history or initialize empty array
-      let history = [];
-      const existingHistory = localStorage.getItem('sleepAssessmentHistory');
-      
-      if (existingHistory) {
-        history = JSON.parse(existingHistory);
-      }
-      
-      // Add new assessment to beginning of array
-      history.unshift(newAssessment);
-      
-      // Limit history to last 30 assessments
-      if (history.length > 30) {
-        history = history.slice(0, 30);
-      }
-      
-      // Save back to localStorage
-      localStorage.setItem('sleepAssessmentHistory', JSON.stringify(history));
-      setAssessmentHistory(history);
-      
-    } catch (error) {
-      console.error("Error saving assessment to history:", error);
-    }
-  };
-
-  // Generate category scores based on user answers
-  const generateCategoryScores = (userAnswers: Record<number, string>): {[key: string]: number} => {
-    const scores: {[key: string]: number} = {
-      "Quality": 65,
-      "Duration": 65,
-      "Consistency": 65,
-      "Environment": 65,
-      "Habits": 65
-    };
-    
-    const answersArray = Object.values(userAnswers);
-    
-    // Hours of sleep (affects Duration and Consistency)
-    if (answersArray[0]?.includes("7-8 hours")) {
-      scores.Duration += 25;
-      scores.Consistency += 10;
-    } else if (answersArray[0]?.includes("More than 8 hours")) {
-      scores.Duration += 15;
-      scores.Consistency += 5;
-    } else if (answersArray[0]?.includes("5-6 hours")) {
-      scores.Duration -= 10;
-      scores.Consistency -= 5;
-    } else if (answersArray[0]?.includes("Less than 5 hours")) {
-      scores.Duration -= 25;
-      scores.Consistency -= 15;
-    }
-    
-    // Time to fall asleep (affects Quality and Habits)
-    if (answersArray[1]?.includes("Less than 5 minutes")) {
-      scores.Quality += 15;
-      scores.Habits += 10;
-    } else if (answersArray[1]?.includes("5-15 minutes")) {
-      scores.Quality += 10;
-      scores.Habits += 5;
-    } else if (answersArray[1]?.includes("15-30 minutes")) {
-      // neutral
-    } else if (answersArray[1]?.includes("30-60 minutes")) {
-      scores.Quality -= 10;
-      scores.Habits -= 10;
-    } else if (answersArray[1]?.includes("More than 60 minutes")) {
-      scores.Quality -= 20;
-      scores.Habits -= 20;
-    }
-    
-    // Waking during night (affects Quality and Environment)
-    if (answersArray[2]?.includes("Not at all")) {
-      scores.Quality += 20;
-      scores.Environment += 10;
-    } else if (answersArray[2]?.includes("Once briefly")) {
-      scores.Quality += 10;
-      scores.Environment += 5;
-    } else if (answersArray[2]?.includes("2-3 times")) {
-      scores.Quality -= 10;
-      scores.Environment -= 5;
-    } else if (answersArray[2]?.includes("More than 3 times")) {
-      scores.Quality -= 20;
-      scores.Environment -= 10;
-    } else if (answersArray[2]?.includes("Awake for extended")) {
-      scores.Quality -= 30;
-      scores.Environment -= 15;
-    }
-    
-    // Morning feeling (affects Quality and overall well-being)
-    if (answersArray[3]?.includes("Very refreshed")) {
-      scores.Quality += 20;
-    } else if (answersArray[3]?.includes("Mostly rested")) {
-      scores.Quality += 10;
-    } else if (answersArray[3]?.includes("Somewhat tired")) {
-      // neutral
-    } else if (answersArray[3]?.includes("Very tired")) {
-      scores.Quality -= 15;
-    } else if (answersArray[3]?.includes("Exhausted")) {
-      scores.Quality -= 25;
-    }
-    
-    // Electronic devices (affects Habits and Environment)
-    if (answersArray[4]?.includes("No devices")) {
-      scores.Habits += 20;
-      scores.Environment += 10;
-    } else if (answersArray[4]?.includes("Brief check only")) {
-      scores.Habits += 10;
-      scores.Environment += 5;
-    } else if (answersArray[4]?.includes("15-30 minutes")) {
-      scores.Habits -= 5;
-      scores.Environment -= 5;
-    } else if (answersArray[4]?.includes("30-60 minutes")) {
-      scores.Habits -= 15;
-      scores.Environment -= 10;
-    } else if (answersArray[4]?.includes("Used until falling asleep")) {
-      scores.Habits -= 25;
-      scores.Environment -= 15;
-    }
-    
-    // Ensure all scores are within 0-100 range
-    Object.keys(scores).forEach(key => {
-      scores[key] = Math.max(0, Math.min(100, scores[key]));
-    });
-    
-    return scores;
   };
 
   // Get sleep quality label based on score
@@ -553,10 +457,9 @@ const SleepTrackingCard = () => {
 
   // Navigate to analytics page with detailed sleep analysis
   const viewDetails = () => {
-    // We'll use localStorage to persist data between pages
-    // No need to use sessionStorage since we're already using localStorage for history
     router.push('/sleep');
   };
+
 
   return (
     <>
