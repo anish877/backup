@@ -1,7 +1,9 @@
 "use client";
 
+import { CustomToaster } from "@/components/CustomToast";
 import "./globals.css"
 import NavBar from '@/components/NavBar';
+import { AuthProvider } from "@/context/AuthContext";
 
 export default function RootLayout({
   children,
@@ -11,8 +13,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <NavBar/>
-          {children}
+        <AuthProvider>
+          <NavBar/>
+            {children}
+        <CustomToaster/>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -36,6 +36,7 @@ export type UserProfile = {
   gender?: 'male' | 'female' | 'other';
   activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very active';
   avatarUrl?: string;
+  symptoms?: string[]
 };
 
 // The shape of our health store
