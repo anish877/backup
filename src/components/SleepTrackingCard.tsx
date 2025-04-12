@@ -416,7 +416,7 @@ const SleepTrackingCard = () => {
         questions,
         responses: userAnswers
       };
-      
+      console.log(newAssessment)
       // Get existing history or initialize empty array
       let history = [];
       const existingHistory = localStorage.getItem('sleepAssessmentHistory');
@@ -555,7 +555,7 @@ const SleepTrackingCard = () => {
   const viewDetails = () => {
     // We'll use localStorage to persist data between pages
     // No need to use sessionStorage since we're already using localStorage for history
-    router.push('/sleep-analysis');
+    router.push('/sleep');
   };
 
   return (

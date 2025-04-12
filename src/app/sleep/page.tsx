@@ -2,16 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Moon, 
+  BatteryFull, 
   Calendar, 
   ArrowLeft, 
   Loader2, 
   Activity, 
-  Coffee, 
   BedDouble, 
   Clock,
   AlertTriangle,
-  BatteryFull
+  Moon,
+  Coffee
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -139,8 +139,8 @@ const SleepAnalysisDetails = () => {
 
   // Get icon based on sleep score
   const getSleepIcon = (score: number) => {
-    if (score >= 80) return <BatteryFull className="w-5 h-5 text-indigo-500" />;
-    if (score >= 65) return <BedDouble className="w-5 h-5 text-indigo-500" />;
+    if (score >= 80) return <BatteryFull className="w-5 h-5 text-blue-500" />;
+    if (score >= 65) return <BedDouble className="w-5 h-5 text-blue-500" />;
     if (score >= 50) return <Clock className="w-5 h-5 text-yellow-500" />;
     return <AlertTriangle className="w-5 h-5 text-red-500" />;
   };
@@ -159,16 +159,16 @@ const SleepAnalysisDetails = () => {
 
   // Get color for category score
   const getCategoryColor = (score: number): string => {
-    if (score >= 80) return 'text-indigo-500';
-    if (score >= 65) return 'text-indigo-600';
+    if (score >= 80) return 'text-blue-500';
+    if (score >= 65) return 'text-blue-600';
     if (score >= 50) return 'text-yellow-500';
     return 'text-red-500';
   };
 
   // Get background color for progress bar
   const getProgressColor = (score: number): string => {
-    if (score >= 80) return 'bg-indigo-500';
-    if (score >= 65) return 'bg-indigo-600';
+    if (score >= 80) return 'bg-blue-500';
+    if (score >= 65) return 'bg-blue-600';
     if (score >= 50) return 'bg-yellow-500';
     return 'bg-red-500';
   };
@@ -200,7 +200,7 @@ const SleepAnalysisDetails = () => {
     return Object.entries(selectedAssessment.categories).map(([category, value]) => ({
       name: category,
       value,
-      color: value >= 80 ? '#4338CA' : value >= 65 ? '#6366F1' : value >= 50 ? '#eab308' : '#ef4444'
+      color: value >= 80 ? '#3b82f6' : value >= 65 ? '#2563eb' : value >= 50 ? '#eab308' : '#ef4444'
     }));
   };
 
@@ -214,33 +214,48 @@ const SleepAnalysisDetails = () => {
     setSelectedAssessment(assessment);
   };
 
+  // Group assessments by date
+  const groupAssessmentsByDate = () => {
+    const grouped: { [key: string]: Assessment[] } = {};
+    
+    assessmentHistory.forEach(assessment => {
+      const date = new Date(assessment.date).toDateString();
+      if (!grouped[date]) {
+        grouped[date] = [];
+      }
+      grouped[date].push(assessment);
+    });
+    
+    return grouped;
+  };
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-6">
+    <div className="min-h-screen bg-white text-gray-900 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center mb-6">
-          <Button variant="ghost" onClick={goBack} className="mr-4 text-zinc-400 hover:text-zinc-100">
+          <Button variant="outline" onClick={goBack} className="mr-4 text-gray-600 hover:text-gray-900">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-zinc-100">Sleep Analysis Dashboard</h1>
-            <p className="text-zinc-400">Detailed insights and historical trends of your sleep patterns</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Sleep Analysis Dashboard</h1>
+            <p className="text-gray-600">Detailed insights and historical trends of your sleep patterns</p>
           </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           </div>
         ) : assessmentHistory.length === 0 ? (
-          <Card className="border-0 shadow-lg rounded-xl overflow-hidden bg-zinc-900">
+          <Card className="border shadow-lg rounded-xl overflow-hidden">
             <CardContent className="p-8 text-center">
-              <div className="mx-auto mb-4 p-4 rounded-full bg-zinc-800 inline-block">
-                <Moon className="h-8 w-8 text-indigo-500" />
+              <div className="mx-auto mb-4 p-4 rounded-full bg-blue-50 inline-block">
+                <Activity className="h-8 w-8 text-blue-500" />
               </div>
-              <h3 className="text-xl font-bold text-zinc-100 mb-2">No Assessment Data</h3>
-              <p className="text-zinc-400 mb-6">Complete your first sleep assessment to see detailed analytics and trends.</p>
-              <Button onClick={goBack} className="bg-indigo-700 hover:bg-indigo-600 text-white">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No Assessment Data</h3>
+              <p className="text-gray-600 mb-6">Complete your first sleep assessment to see detailed analytics and trends.</p>
+              <Button onClick={goBack} className="bg-blue-600 hover:bg-blue-700 text-white">
                 Go Back to Take Assessment
               </Button>
             </CardContent>
@@ -249,40 +264,51 @@ const SleepAnalysisDetails = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left column - Assessment history */}
             <div className="lg:col-span-1">
-              <Card className="border-0 shadow-lg rounded-xl overflow-hidden bg-zinc-900 h-full">
-                <CardHeader className="p-4 bg-gradient-to-r from-indigo-900 to-indigo-700 border-b border-indigo-800">
+              <Card className="border shadow-lg rounded-xl overflow-hidden h-full">
+                <CardHeader className="p-4 bg-blue-50 border-b border-blue-100">
                   <div className="flex items-center space-x-2">
-                    <Calendar className="h-5 w-5 text-indigo-300" />
-                    <h2 className="text-lg font-semibold text-white">Assessment History</h2>
+                    <Calendar className="h-5 w-5 text-blue-500" />
+                    <h2 className="text-lg font-semibold text-gray-900">Assessment History</h2>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
                   <ScrollArea className="h-[calc(100vh-280px)]">
-                    <div className="divide-y divide-zinc-800">
-                      {assessmentHistory.map((assessment, index) => (
-                        <div 
-                          key={index}
-                          onClick={() => handleSelectAssessment(assessment)}
-                          className={`p-4 cursor-pointer hover:bg-zinc-800/50 transition-colors ${
-                            selectedAssessment && selectedAssessment.date === assessment.date ? 'bg-zinc-800' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="p-2 bg-zinc-800 rounded-full">
-                                {getSleepIcon(assessment.score)}
-                              </div>
-                              <div>
-                                <div className="flex items-center space-x-2">
-                                  <span className="font-medium text-zinc-100">{assessment.score}</span>
-                                  <Badge className="bg-zinc-800 text-zinc-300 text-xs">
-                                    {getSleepQualityLabel(assessment.score)}
-                                  </Badge>
-                                </div>
-                                <p className="text-xs text-zinc-400">{formatDate(assessment.date)}</p>
-                              </div>
+                    <div className="divide-y divide-gray-200">
+                      {Object.entries(groupAssessmentsByDate()).map(([date, assessments]) => (
+                        <div key={date} className="p-0">
+                          <div className="p-3 bg-blue-50/50">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium text-gray-600">{new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                              <span className="text-sm text-blue-600">{assessments.length} check-in{assessments.length !== 1 ? 's' : ''}</span>
                             </div>
                           </div>
+                          
+                          {assessments.map((assessment, assessmentIndex) => (
+                            <div 
+                              key={assessmentIndex}
+                              onClick={() => handleSelectAssessment(assessment)}
+                              className={`p-4 cursor-pointer hover:bg-blue-50/50 transition-colors ${
+                                selectedAssessment && selectedAssessment.date === assessment.date ? 'bg-blue-100' : ''
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="p-2 bg-blue-100 rounded-full">
+                                    {getSleepIcon(assessment.score)}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center space-x-2">
+                                      <Badge className="bg-blue-100 text-blue-800 border border-blue-200 text-xs">
+                                        {getSleepQualityLabel(assessment.score)}
+                                      </Badge>
+                                      <span className="font-medium text-gray-900">{assessment.score}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 mt-1">{formatDate(assessment.date)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
@@ -294,14 +320,14 @@ const SleepAnalysisDetails = () => {
             {/* Right column - Analysis content */}
             <div className="lg:col-span-2">
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="w-full bg-zinc-900 border-b border-zinc-800 rounded-t-xl p-0">
-                  <TabsTrigger value="overview" className="flex-1 py-3 rounded-none data-[state=active]:bg-zinc-800">
+                <TabsList className="w-full bg-white border-b rounded-t-xl p-0">
+                  <TabsTrigger value="overview" className="flex-1 py-3 rounded-none data-[state=active]:bg-blue-50">
                     Overview
                   </TabsTrigger>
-                  <TabsTrigger value="trends" className="flex-1 py-3 rounded-none data-[state=active]:bg-zinc-800">
+                  <TabsTrigger value="trends" className="flex-1 py-3 rounded-none data-[state=active]:bg-blue-50">
                     Trends
                   </TabsTrigger>
-                  <TabsTrigger value="details" className="flex-1 py-3 rounded-none data-[state=active]:bg-zinc-800">
+                  <TabsTrigger value="details" className="flex-1 py-3 rounded-none data-[state=active]:bg-blue-50">
                     Details
                   </TabsTrigger>
                 </TabsList>
@@ -310,32 +336,45 @@ const SleepAnalysisDetails = () => {
                   <>
                     {/* Overview Tab */}
                     <TabsContent value="overview" className="mt-4 space-y-4">
-                      <Card className="border-0 shadow-lg rounded-xl overflow-hidden bg-zinc-900">
+                      <Card className="border shadow-lg rounded-xl overflow-hidden">
                         <CardContent className="p-5">
                           <div className="flex items-center justify-between mb-4">
                             <div>
-                              <h3 className="text-xl font-bold text-zinc-100">Sleep Score</h3>
-                              <p className="text-sm text-zinc-400">{formatDate(selectedAssessment.date)}</p>
+                              <h3 className="text-xl font-bold text-gray-900">Sleep Score</h3>
+                              <p className="text-sm text-gray-600">{formatDate(selectedAssessment.date)}</p>
                             </div>
                             <div className="flex items-center">
-                              <span className="text-3xl font-bold text-zinc-100 mr-2">{selectedAssessment.score}</span>
-                              <Badge className="bg-indigo-900/50 text-indigo-300 border border-indigo-700">
+                              <span className="text-3xl font-bold text-gray-900 mr-2">{selectedAssessment.score}</span>
+                              <Badge className="bg-blue-100 text-blue-800 border border-blue-200">
                                 {getSleepQualityLabel(selectedAssessment.score)}
                               </Badge>
                             </div>
                           </div>
                           
+                          <div className="bg-blue-50/50 p-4 rounded-lg mb-6">
+                            <div className="flex items-center mb-2">
+                              <Badge className="mr-2 bg-blue-100 text-blue-800 border border-blue-200">
+                                Sleep Check-in
+                              </Badge>
+                              <span className="text-sm text-gray-600">{formatDate(selectedAssessment.date)}</span>
+                            </div>
+                            
+                            {selectedAssessment.analysis && (
+                              <p className="text-sm text-gray-700 mt-2">{selectedAssessment.analysis}</p>
+                            )}
+                          </div>
+                          
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                              <h4 className="font-medium text-zinc-300 mb-3">Category Breakdown</h4>
+                              <h4 className="font-medium text-gray-700 mb-3">Category Breakdown</h4>
                               <div className="space-y-3">
                                 {Object.entries(selectedAssessment.categories).map(([category, score]) => (
                                   <div key={category} className="space-y-1">
                                     <div className="flex justify-between items-center">
-                                      <span className="text-sm text-zinc-300">{category}</span>
+                                      <span className="text-sm text-gray-700">{category}</span>
                                       <span className={`text-sm font-medium ${getCategoryColor(score)}`}>{score}/100</span>
                                     </div>
-                                    <Progress value={score} className="h-2 bg-zinc-800">
+                                    <Progress value={score} className="h-2 bg-gray-200">
                                       <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
                                     </Progress>
                                   </div>
@@ -344,7 +383,7 @@ const SleepAnalysisDetails = () => {
                             </div>
                             
                             <div>
-                              <h4 className="font-medium text-zinc-300 mb-3">Distribution</h4>
+                              <h4 className="font-medium text-gray-700 mb-3">Distribution</h4>
                               <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
                                   <PieChart>
@@ -372,27 +411,19 @@ const SleepAnalysisDetails = () => {
                           {/* Show AI Generated Recommendations if available */}
                           {selectedAssessment.insights && (
                             <div className="mt-6">
-                              <h4 className="font-medium text-zinc-300 mb-3">Recommended Actions</h4>
+                              <h4 className="font-medium text-gray-700 mb-3">Recommended Actions</h4>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 {selectedAssessment.insights.map((insight, index) => (
-                                  <div key={index} className="bg-indigo-900/20 p-3 rounded-lg border border-indigo-900/50">
-                                    <div className="flex-shrink-0 bg-indigo-800/70 p-2 rounded-full mb-2">
-                                      {index === 0 ? <Moon className="h-4 w-4 text-indigo-300" /> : 
-                                       index === 1 ? <BedDouble className="h-4 w-4 text-indigo-300" /> :
-                                       <Coffee className="h-4 w-4 text-indigo-300" />}
+                                  <div key={index} className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full mb-2">
+                                      {index === 0 ? <Moon className="h-4 w-4 text-blue-500" /> : 
+                                       index === 1 ? <BedDouble className="h-4 w-4 text-blue-500" /> :
+                                       <Coffee className="h-4 w-4 text-blue-500" />}
                                     </div>
-                                    <p className="text-sm text-zinc-300">{insight}</p>
+                                    <p className="text-sm text-gray-700">{insight}</p>
                                   </div>
                                 ))}
                               </div>
-                            </div>
-                          )}
-                          
-                          {/* AI Analysis */}
-                          {selectedAssessment.analysis && (
-                            <div className="mt-6 bg-indigo-900/20 p-4 rounded-lg border border-indigo-900/50">
-                              <h4 className="font-medium text-zinc-300 mb-2">AI Analysis</h4>
-                              <p className="text-sm text-zinc-300">{selectedAssessment.analysis}</p>
                             </div>
                           )}
                         </CardContent>
@@ -401,38 +432,38 @@ const SleepAnalysisDetails = () => {
 
                     {/* Trends Tab */}
                     <TabsContent value="trends" className="mt-4 space-y-4">
-                      <Card className="border-0 shadow-lg rounded-xl overflow-hidden bg-zinc-900">
+                      <Card className="border shadow-lg rounded-xl overflow-hidden">
                         <CardContent className="p-5">
-                          <h3 className="text-xl font-bold text-zinc-100 mb-4">Sleep Score Trends</h3>
+                          <h3 className="text-xl font-bold text-gray-900 mb-4">Sleep Score Trends</h3>
                           
                           <div className="h-72 mb-6">
                             <ResponsiveContainer width="100%" height="100%">
                               <LineChart data={prepareTrendData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="date" stroke="#888" />
-                                <YAxis domain={[0, 100]} stroke="#888" />
-                                <Tooltip contentStyle={{ backgroundColor: '#222', borderColor: '#444' }} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
+                                <XAxis dataKey="date" stroke="#666" />
+                                <YAxis domain={[0, 100]} stroke="#666" />
+                                <Tooltip contentStyle={{ backgroundColor: '#eee', borderColor: '#999' }} />
                                 <Legend />
-                                <Line type="monotone" dataKey="score" stroke="#4338CA" strokeWidth={2} name="Overall Score" />
+                                <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} name="Overall Score" />
                               </LineChart>
                             </ResponsiveContainer>
                           </div>
                           
-                          <Separator className="my-6 bg-zinc-800" />
+                          <Separator className="my-6 bg-gray-200" />
                           
-                          <h3 className="text-xl font-bold text-zinc-100 mb-4">Category Trends</h3>
+                          <h3 className="text-xl font-bold text-gray-900 mb-4">Category Trends</h3>
                           
                           <div className="h-72">
                             <ResponsiveContainer width="100%" height="100%">
                               <LineChart data={prepareTrendData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="date" stroke="#888" />
-                                <YAxis domain={[0, 100]} stroke="#888" />
-                                <Tooltip contentStyle={{ backgroundColor: '#222', borderColor: '#444' }} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
+                                <XAxis dataKey="date" stroke="#666" />
+                                <YAxis domain={[0, 100]} stroke="#666" />
+                                <Tooltip contentStyle={{ backgroundColor: '#eee', borderColor: '#999' }} />
                                 <Legend />
-                                <Line type="monotone" dataKey="Quality" stroke="#4338CA" strokeWidth={2} />
+                                <Line type="monotone" dataKey="Quality" stroke="#3b82f6" strokeWidth={2} />
                                 <Line type="monotone" dataKey="Duration" stroke="#eab308" strokeWidth={2} />
-                                <Line type="monotone" dataKey="Consistency" stroke="#3b82f6" strokeWidth={2} />
+                                <Line type="monotone" dataKey="Consistency" stroke="#0ea5e9" strokeWidth={2} />
                                 <Line type="monotone" dataKey="Environment" stroke="#a855f7" strokeWidth={2} />
                                 <Line type="monotone" dataKey="Habits" stroke="#ec4899" strokeWidth={2} />
                               </LineChart>
@@ -441,21 +472,21 @@ const SleepAnalysisDetails = () => {
                         </CardContent>
                       </Card>
                       
-                      <Card className="border-0 shadow-lg rounded-xl overflow-hidden bg-zinc-900">
+                      <Card className="border shadow-lg rounded-xl overflow-hidden">
                         <CardContent className="p-5">
-                          <h3 className="text-xl font-bold text-zinc-100 mb-4">Category Comparison</h3>
+                          <h3 className="text-xl font-bold text-gray-900 mb-4">Category Comparison</h3>
                           
                           <div className="h-72">
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={prepareTrendData().slice(-3)} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="date" stroke="#888" />
-                                <YAxis domain={[0, 100]} stroke="#888" />
-                                <Tooltip contentStyle={{ backgroundColor: '#222', borderColor: '#444' }} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
+                                <XAxis dataKey="date" stroke="#666" />
+                                <YAxis domain={[0, 100]} stroke="#666" />
+                                <Tooltip contentStyle={{ backgroundColor: '#eee', borderColor: '#999' }} />
                                 <Legend />
-                                <Bar dataKey="Quality" fill="#4338CA" />
+                                <Bar dataKey="Quality" fill="#3b82f6" />
                                 <Bar dataKey="Duration" fill="#eab308" />
-                                <Bar dataKey="Consistency" fill="#3b82f6" />
+                                <Bar dataKey="Consistency" fill="#0ea5e9" />
                                 <Bar dataKey="Environment" fill="#a855f7" />
                                 <Bar dataKey="Habits" fill="#ec4899" />
                               </BarChart>
@@ -467,19 +498,19 @@ const SleepAnalysisDetails = () => {
 
                     {/* Details Tab */}
                     <TabsContent value="details" className="mt-4">
-                      <Card className="border-0 shadow-lg rounded-xl overflow-hidden bg-zinc-900">
+                      <Card className="border shadow-lg rounded-xl overflow-hidden">
                         <CardContent className="p-5">
-                          <h3 className="text-xl font-bold text-zinc-100 mb-4">Assessment Details</h3>
-                          <p className="text-sm text-zinc-400 mb-4">{formatDate(selectedAssessment.date)}</p>
+                          <h3 className="text-xl font-bold text-gray-900 mb-4">Assessment Details</h3>
+                          <p className="text-sm text-gray-600 mb-4">{formatDate(selectedAssessment.date)}</p>
                           
                           {selectedAssessment.questions && selectedAssessment.responses ? (
                             <div className="space-y-4">
                               {selectedAssessment.questions.map((question, index) => (
-                                <div key={index} className="border border-zinc-800 rounded-lg p-4 bg-zinc-800/30">
-                                  <h4 className="font-medium text-zinc-300 mb-2">Question {index + 1}</h4>
-                                  <p className="text-sm text-zinc-400 mb-3">{question}</p>
-                                  <div className="bg-zinc-800 p-3 rounded-lg">
-                                    <p className="text-sm text-zinc-300">
+                                <div key={index} className="border border-gray-200 rounded-lg p-4 bg-blue-50/50">
+                                  <h4 className="font-medium text-gray-700 mb-2">Question {index + 1}</h4>
+                                  <p className="text-sm text-gray-600 mb-3">{question}</p>
+                                  <div className="bg-blue-50 p-3 rounded-lg">
+                                    <p className="text-sm text-gray-700">
                                       {selectedAssessment.responses[index] || "No response provided"}
                                     </p>
                                   </div>
@@ -487,8 +518,8 @@ const SleepAnalysisDetails = () => {
                               ))}
                             </div>
                           ) : (
-                            <div className="text-center p-6 bg-zinc-800/30 rounded-lg">
-                              <p className="text-zinc-400">
+                            <div className="text-center p-6 bg-blue-50/50 rounded-lg border border-blue-100">
+                              <p className="text-gray-600">
                                 Detailed responses are not available for this assessment.
                               </p>
                             </div>
@@ -496,27 +527,27 @@ const SleepAnalysisDetails = () => {
                           
                           {/* Sleep Stage Analysis - This would be in a real app if sleep stage data was available */}
                           <div className="mt-6">
-                            <h3 className="text-xl font-bold text-zinc-100 mb-4">Sleep Stages</h3>
-                            <div className="bg-zinc-800/30 rounded-lg p-4 text-center">
-                              <p className="text-zinc-400 mb-4">
+                            <h3 className="text-xl font-bold text-gray-900 mb-4">Sleep Stages</h3>
+                            <div className="bg-blue-50/50 rounded-lg p-4 text-center border border-blue-100">
+                              <p className="text-gray-600 mb-4">
                                 Sleep stage data is not available for this assessment. Connect a compatible sleep tracking device to see detailed sleep stage analysis.
                               </p>
                               <div className="grid grid-cols-4 gap-2 text-center">
-                                <div className="p-3 bg-indigo-900/20 rounded-lg border border-indigo-900/50">
-                                  <p className="text-xs text-zinc-400">Awake</p>
-                                  <p className="text-lg font-bold text-zinc-200">--</p>
+                                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                  <p className="text-xs text-gray-600">Awake</p>
+                                  <p className="text-lg font-bold text-gray-700">--</p>
                                 </div>
-                                <div className="p-3 bg-indigo-900/20 rounded-lg border border-indigo-900/50">
-                                  <p className="text-xs text-zinc-400">Light</p>
-                                  <p className="text-lg font-bold text-zinc-200">--</p>
+                                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                  <p className="text-xs text-gray-600">Light</p>
+                                  <p className="text-lg font-bold text-gray-700">--</p>
                                 </div>
-                                <div className="p-3 bg-indigo-900/20 rounded-lg border border-indigo-900/50">
-                                  <p className="text-xs text-zinc-400">Deep</p>
-                                  <p className="text-lg font-bold text-zinc-200">--</p>
+                                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                  <p className="text-xs text-gray-600">Deep</p>
+                                  <p className="text-lg font-bold text-gray-700">--</p>
                                 </div>
-                                <div className="p-3 bg-indigo-900/20 rounded-lg border border-indigo-900/50">
-                                  <p className="text-xs text-zinc-400">REM</p>
-                                  <p className="text-lg font-bold text-zinc-200">--</p>
+                                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                  <p className="text-xs text-gray-600">REM</p>
+                                  <p className="text-lg font-bold text-gray-700">--</p>
                                 </div>
                               </div>
                             </div>
@@ -526,8 +557,8 @@ const SleepAnalysisDetails = () => {
                     </TabsContent>
                   </>
                 ) : (
-                  <div className="mt-4 p-8 text-center bg-zinc-900 rounded-xl">
-                    <p className="text-zinc-400">
+                  <div className="mt-4 p-8 text-center bg-blue-50 rounded-xl">
+                    <p className="text-gray-600">
                       Select an assessment from the history to view details
                     </p>
                   </div>
