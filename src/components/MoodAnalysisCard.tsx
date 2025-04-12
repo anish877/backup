@@ -1,6 +1,7 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Smile, Settings, ArrowRight, Loader2, AlertTriangle, Activity, Brain, Coffee, Sun } from 'lucide-react';
+import { Smile, Settings, ArrowRight, Loader2, BarChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,14 +14,17 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useRouter } from 'next/navigation';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
 
 const MoodAnalysisCard = () => {
+  const router = useRouter();
+  
   // States for UI
   const [showAssessment, setShowAssessment] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -29,16 +33,9 @@ const MoodAnalysisCard = () => {
   const [currentResponse, setCurrentResponse] = useState("");
   const [moodScore, setMoodScore] = useState(72);
   const [assessmentComplete, setAssessmentComplete] = useState(false);
-  const [insights, setInsights] = useState<string[]>([
-    "Practice gratitude - write down three things you appreciate today",
-    "Take a 10-minute nature break to restore mental balance",
-    "Connect with a friend or family member for positive social interaction"
-  ]);
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [lastAssessmentDate, setLastAssessmentDate] = useState("Today");
-  const [aiAnalysis, setAiAnalysis] = useState<string>("");
-  const [moodIcon, setMoodIcon] = useState(<Smile className="w-5 h-5 text-emerald-500" />);
   const [moodCategories, setMoodCategories] = useState<{[key: string]: number}>({
     "Happiness": 68,
     "Energy": 65,
@@ -46,6 +43,12 @@ const MoodAnalysisCard = () => {
     "Focus": 75,
     "Optimism": 80
   });
+
+  // Prepare data for pie chart
+  const pieData = [
+    { name: 'Mood Score', value: moodScore, color: '#10b981' },
+    { name: 'Remaining', value: 100 - moodScore, color: '#134E40' }
+  ];
 
   // Function to call Gemini API directly
   const callGeminiAPI = async (prompt: string): Promise<string> => {
@@ -196,61 +199,7 @@ Optimism: [score]`;
       
       // Parse the response
       //@ts-expect-error: no need here
-      const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nICON:|\n\nRECOMMENDATIONS:|$)/s);
-      //@ts-expect-error: no need here
-      const iconMatch = aiResponse.match(/ICON:(.*?)(?=\n\nRECOMMENDATIONS:|$)/s);
-      //@ts-expect-error: no need here
-      const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCATEGORY_SCORES:|$)/s);
-      //@ts-expect-error: no need here
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
-      
-      // Set AI analysis
-      if (analysisMatch && analysisMatch[1]) {
-        setAiAnalysis(analysisMatch[1].trim());
-      } else {
-        setAiAnalysis("Your responses suggest a mixed emotional state with both positive and challenging elements. You appear to be managing reasonably well but could benefit from some targeted emotional support strategies.");
-      }
-      
-      // Set icon based on mood
-      if (iconMatch && iconMatch[1]) {
-        const iconName = iconMatch[1].trim().toLowerCase();
-        switch (iconName) {
-          case 'smile':
-            setMoodIcon(<Smile className="w-5 h-5 text-emerald-500" />);
-            break;
-          case 'frown':
-            setMoodIcon(<AlertTriangle className="w-5 h-5 text-emerald-500" />);
-            break;
-          case 'activity':
-            setMoodIcon(<Activity className="w-5 h-5 text-emerald-500" />);
-            break;
-          case 'brain':
-            setMoodIcon(<Brain className="w-5 h-5 text-emerald-500" />);
-            break;
-          case 'sun':
-            setMoodIcon(<Sun className="w-5 h-5 text-emerald-500" />);
-            break;
-          case 'coffee':
-            setMoodIcon(<Coffee className="w-5 h-5 text-emerald-500" />);
-            break;
-          default:
-            setMoodIcon(<Smile className="w-5 h-5 text-emerald-500" />);
-        }
-      }
-      
-      // Set recommendations
-      if (recommendationsMatch && recommendationsMatch[1]) {
-        const recLines = recommendationsMatch[1].trim().split('\n').filter(line => line.trim() !== '');
-        if (recLines.length >= 3) {
-          setInsights(recLines.slice(0, 3));
-        } else {
-          setInsights([
-            "Take a 15-minute walk in nature",
-            "Practice deep breathing for 5 minutes",
-            "Connect with a supportive friend today"
-          ]);
-        }
-      }
       
       // Set category scores and calculate mood score as their average
       let categoryScores: {[key: string]: number} = {};
@@ -300,16 +249,21 @@ Optimism: [score]`;
       setMoodScore(averageScore);
       setLastAssessmentDate("Today");
       
+      // Save the assessment data to localStorage for the detailed page
+      const newAssessmentData = {
+        date: new Date().toISOString(),
+        score: averageScore,
+        categories: categoryScores,
+        responses: userResponses,
+        questions: questions
+      };
+      
+      // Get existing data or initialize empty array
+      const existingData = JSON.parse(localStorage.getItem('moodAssessmentHistory') || '[]');
+      localStorage.setItem('moodAssessmentHistory', JSON.stringify([...existingData, newAssessmentData]));
+      
     } catch (error) {
       console.error("Error generating insights:", error);
-      
-      // Default insights and analysis
-      setInsights([
-        "Take a 15-minute walk in nature",
-        "Practice deep breathing for 5 minutes",
-        "Connect with a supportive friend today"
-      ]);
-      setAiAnalysis("Based on your responses, you seem to be experiencing a mix of emotions today. It might help to take some time for self-care and reflection.");
       
       // Default category scores
       const defaultCategories = {
@@ -331,28 +285,17 @@ Optimism: [score]`;
     }
   };
 
-  // Get color for category score
-  const getCategoryColor = (score: number): string => {
-    if (score >= 80) return 'text-emerald-500';
-    if (score >= 65) return 'text-emerald-600';
-    if (score >= 50) return 'text-yellow-500';
-    return 'text-red-500';
-  };
-
-  // Get background color for progress bar
-  const getProgressColor = (score: number): string => {
-    if (score >= 80) return 'bg-emerald-500';
-    if (score >= 65) return 'bg-emerald-600';
-    if (score >= 50) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
   // Get mood label based on score
   const getMoodLabel = (score: number): string => {
     if (score >= 85) return "Excellent";
     if (score >= 70) return "Good";
     if (score >= 50) return "Fair";
     return "Needs attention";
+  };
+  
+  // Navigate to detailed analysis page
+  const goToDetailedAnalysis = () => {
+    router.push('/mood');
   };
 
   return (
@@ -371,79 +314,62 @@ Optimism: [score]`;
         </CardHeader>
         
         <CardContent className="p-4 md:p-5 bg-zinc-900 text-zinc-100">
-          <div className="flex items-start justify-between mb-4 md:mb-5">
-            <div>
-              <div className="flex items-baseline">
+          <div className="flex flex-col items-center justify-center mb-4">
+            <div className="h-48 w-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={0}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="text-center mt-2">
+              <div className="flex items-center justify-center">
                 <span className="text-3xl md:text-4xl font-bold text-zinc-100">{moodScore}</span>
                 <span className="text-xs md:text-sm text-zinc-400 ml-1">/100</span>
-                <Badge className="ml-2 md:ml-3 bg-emerald-900/50 text-emerald-300 hover:bg-emerald-800/70 text-xs border border-emerald-700">
-                  {moodScore > 70 ? '+' : ''}{moodScore - 65}% from avg
-                </Badge>
               </div>
-              <h3 className="text-xs md:text-sm text-zinc-400 mt-1">Mood Score • Last assessed: {lastAssessmentDate}</h3>
-              
-              <div className="flex space-x-1 mt-2 md:mt-3">
-                {[...Array(10)].map((_, i) => (
-                  <span 
-                    key={i} 
-                    className="inline-block w-6 md:w-8 h-1.5 rounded-full" 
-                    style={{ 
-                      backgroundColor: i < (moodScore / 10) ? '#059669' : '#134E40'
-                    }}
-                  ></span>
-                ))}
-              </div>
+              <Badge className="mt-1 bg-emerald-900/50 text-emerald-300 hover:bg-emerald-800/70 text-xs border border-emerald-700">
+                {getMoodLabel(moodScore)}
+              </Badge>
+              <h3 className="text-xs md:text-sm text-zinc-400 mt-1">Last assessed: {lastAssessmentDate}</h3>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {Object.entries(moodCategories).map(([category, score]) => (
-              <div key={category} className="border border-zinc-800 rounded-lg p-2 bg-zinc-800/50">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-zinc-300">{category}</span>
-                  <span className={`text-xs font-medium ${getCategoryColor(score)}`}>{score}</span>
-                </div>
-                <Progress value={score} className="h-1.5" 
-                  style={{backgroundColor: '#134E40'}}
-                >
-                  <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
-                </Progress>
-              </div>
-            ))}
           </div>
 
           <Separator className="my-3 md:my-4 bg-zinc-800" />
           
-          <div className="space-y-3 md:space-y-4 mt-3 md:mt-4">
-            <h3 className="font-semibold text-base md:text-lg text-zinc-100">Recommendations</h3>
+          <div className="flex flex-col space-y-2">
+            <Button 
+              onClick={goToDetailedAnalysis}
+              className="bg-emerald-800 hover:bg-emerald-700 text-white text-xs md:text-sm"
+            >
+              <BarChart className="mr-2 h-4 w-4" />
+              View Detailed Analysis
+            </Button>
             
-            {insights.map((insight, index) => (
-              <div key={index} className="flex items-start bg-emerald-900/20 p-2 md:p-3 rounded-lg border border-emerald-900/50">
-                <div className="flex-shrink-0 bg-emerald-800/70 p-1.5 md:p-2 rounded-full mr-2 md:mr-3">
-                  <span className="flex items-center justify-center w-3 h-3 md:w-4 md:h-4 text-xs font-bold text-emerald-300">{index + 1}</span>
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-zinc-200">{insight}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-4 md:mt-6 flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-zinc-800/70 rounded-lg border border-zinc-700">
-            <div>
-              <p className="text-xs md:text-sm font-medium text-zinc-100">Take today's assessment</p>
-              <p className="text-xs text-zinc-400 hidden md:block">Get personalized wellness recommendations</p>
-            </div>
             <Button 
               onClick={handleStartAssessment} 
-              className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs md:text-sm py-1 px-2 md:py-2 md:px-3"
+              className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs md:text-sm"
               disabled={isGeneratingQuestions}
             >
               {isGeneratingQuestions ? (
                 <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
               ) : (
                 <>
-                  Start <ArrowRight className="ml-1 md:ml-2 h-3 w-3 md:h-4 md:w-4" />
+                  Take New Assessment <ArrowRight className="ml-1 md:ml-2 h-3 w-3 md:h-4 md:w-4" />
                 </>
               )}
             </Button>
@@ -456,7 +382,7 @@ Optimism: [score]`;
           <DialogHeader>
             <DialogTitle className="text-zinc-100">
               {assessmentComplete ? 
-                "Your Mood Assessment Results" : 
+                "Mood Assessment Complete" : 
                 isGeneratingQuestions ? 
                   "Preparing Your Assessment..." :
                   `Question ${currentQuestion + 1} of ${questions.length}`
@@ -464,7 +390,7 @@ Optimism: [score]`;
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
               {assessmentComplete 
-                ? "Based on your responses, we've analyzed your emotional state and generated personalized recommendations."
+                ? "Your assessment has been recorded. View detailed results in the analysis page."
                 : isGeneratingQuestions
                   ? "Our AI is creating personalized questions about your current emotional state..."
                   : "Express how you're feeling today to get personalized emotional wellness insights"}
@@ -483,9 +409,6 @@ Optimism: [score]`;
           {assessmentComplete ? (
             <div className="space-y-4 py-4">
               <div className="text-center mb-6">
-                <div className="inline-block p-4 rounded-full bg-emerald-900/40 mb-2 border border-emerald-800/70">
-                  {moodIcon}
-                </div>
                 <h3 className="text-2xl font-bold text-zinc-100">Your Mood Score: {moodScore}</h3>
                 <p className="text-zinc-400">
                   {getMoodLabel(moodScore)} emotional state
@@ -500,39 +423,11 @@ Optimism: [score]`;
                   </p>
                 </div>
               ) : (
-                <>
-                  <div className="bg-emerald-900/20 p-4 rounded-lg mb-4 border border-emerald-900/50">
-                    <h4 className="font-medium text-emerald-400 mb-2">AI Analysis</h4>
-                    <p className="text-sm text-zinc-300">{aiAnalysis}</p>
-                  </div>
-                  
-                  <div className="space-y-3 mb-4">
-                    <h4 className="font-medium text-zinc-100">Emotional State Breakdown</h4>
-                    {Object.entries(moodCategories).map(([category, score]) => (
-                      <div key={category} className="space-y-1">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-zinc-300">{category}</span>
-                          <span className={`text-sm font-medium ${getCategoryColor(score)}`}>{score}/100</span>
-                        </div>
-                        <Progress value={score} className="h-2 bg-zinc-800">
-                          <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
-                        </Progress>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium mb-2 text-zinc-100">Personalized Recommendations</h4>
-                    {insights.map((insight, index) => (
-                      <div key={index} className="flex items-start bg-emerald-900/20 p-3 rounded-lg mb-2 border border-emerald-900/50">
-                        <div className="flex-shrink-0 bg-emerald-800/70 p-2 rounded-full mr-3">
-                          <span className="flex items-center justify-center w-4 h-4 text-xs font-bold text-emerald-300">{index + 1}</span>
-                        </div>
-                        <p className="text-sm text-zinc-300">{insight}</p>
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <div className="text-center">
+                  <p className="text-sm text-zinc-300 mb-4">
+                    Your assessment has been saved. View the detailed breakdown and recommendations in the analysis page.
+                  </p>
+                </div>
               )}
             </div>
           ) : (
@@ -578,11 +473,19 @@ Optimism: [score]`;
           
           <DialogFooter>
             {assessmentComplete && (
-              <DialogClose asChild>
-                <Button className="w-full bg-emerald-700 hover:bg-emerald-600 text-white">
-                  Close and Save Results
+              <div className="w-full space-y-2">
+                <Button 
+                  onClick={goToDetailedAnalysis} 
+                  className="w-full bg-emerald-700 hover:bg-emerald-600 text-white"
+                >
+                  View Detailed Analysis
                 </Button>
-              </DialogClose>
+                <DialogClose asChild>
+                  <Button variant="outline" className="w-full border-zinc-700 text-zinc-900 hover:bg-zinc-800">
+                    Close
+                  </Button>
+                </DialogClose>
+              </div>
             )}
             
             {!assessmentComplete && !isGeneratingQuestions && (
