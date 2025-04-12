@@ -5,7 +5,7 @@ import HealthImprovementChart from '../components/HealthImprovementChart';
 import CalendarCard from '../components/CalendarCard';
 import LifestyleCard from '../components/LifestyleCard';
 import HealthMetricsCard from '../components/HealthMetricsCard';
-import BodyTrackingCard from '../components/BodyTrackingCard';
+import SleepTrackingCard from '../components/SleepTrackingCard';
 
 const Index = () => {
   return (
@@ -21,7 +21,7 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 ">
           <div>
             <LifestyleCard />
           </div>
@@ -29,7 +29,7 @@ const Index = () => {
             <HealthMetricsCard />
           </div>
           <div>
-            <BodyTrackingCard />
+            <SleepTrackingCard />
           </div>
         </div>
       </div>
