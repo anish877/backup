@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
 import axios from 'axios';
+import { customToast } from '@/components/CustomToast';
 
 export default function SignIn() {
   const [username, setUsername] = useState('');
@@ -30,20 +30,19 @@ export default function SignIn() {
 
       const { data } = response;
 
-      console.log(data)
 
       if (response.status === 200) {
-        toast.success('Signed in successfully!');
+        customToast.success('Signed in successfully!');
         router.push('/dashboard'); 
-      } else if (response.status === 403) {
-        toast.error('User not found!');
+      } else if (response.status === 203) {
+        customToast.error('User not found!');
       } else if (response.status === 206) {
-        toast.error('Incorrect credentials!');
+        customToast.error('Incorrect credentials!');
       } else {
-        toast.error('Something went wrong. Please try again.');
+        customToast.error('Something went wrong. Please try again.');
       }
     } catch (error) {
-      toast.error('Failed to connect to server. Please try again later.');
+      customToast.error('Failed to connect to server. Please try again later.');
       console.error('SignIn Error:', error);
     } finally {
       setIsLoading(false);

@@ -4,9 +4,9 @@ import { Check, Clipboard, User, Send, GitGraphIcon, Paperclip, MessageSquarePlu
 import Image from 'next/image';
 import gemini from '@/images/zero.png'; 
 import useMessageStore from '@/store/messages';
-import toast from 'react-hot-toast';
 import { useParams } from 'next/navigation';
 import useTokenStore from '@/store/token';
+import { customToast } from './CustomToast';
 
 const ChatComponent: React.FC = () => {
   const { 
@@ -81,11 +81,11 @@ const ChatComponent: React.FC = () => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMessageId(id);
-      toast.success("Copied to clipboard! 📋");
+      customToast.success("Copied to clipboard! 📋");
       setTimeout(() => setCopiedMessageId(null), 2000);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to copy! ❌");
+      customToast.error("Failed to copy! ❌");
     }
   };
 

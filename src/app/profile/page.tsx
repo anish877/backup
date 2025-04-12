@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Activity, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useHealthStore, getHealthStats, formatActivityLevel } from '@/store/healthStore';
+import axios from 'axios';
+import { customToast } from '@/components/CustomToast';
+import toast from 'react-hot-toast';
 
 const formSchema = z.object({
   age: z.coerce.number().min(1, "Age is required"),
@@ -29,7 +31,6 @@ const formSchema = z.object({
 const UserProfile = () => {
   const { healthGoal, userProfile, setUserProfile, updateUserProfile, isOnboarded, dailyLogs, resetHealthData } = useHealthStore();
   const router = useRouter();
-  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
 
   // Redirect to goal setup if not onboarded
@@ -70,10 +71,7 @@ const UserProfile = () => {
       activityLevel: values.activityLevel,
     });
     
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been successfully updated.",
-    });
+    customToast.success("Your profile has been successfully updated.");
     
     setIsEditing(false);
   };
@@ -81,17 +79,51 @@ const UserProfile = () => {
   // Get the health statistics
   const stats = getHealthStats(dailyLogs);
 
-  const handleDeleteAccount = () => {
-    // First show a confirmation toast or dialog (not implemented here)
-    toast({
-      title: "Warning",
-      description: "Are you sure you want to delete your account? This action cannot be undone.",
+  const handleDeleteAccount = async () => {
+    const confirm = await new Promise<boolean>((resolve) => {
+      toast(
+        (t) => (
+          <span>
+            Are you sure you want to delete your account? <br />
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                resolve(true);
+              }}
+              className="text-red-500 font-semibold mr-2"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                resolve(false);
+              }}
+              className="text-gray-600 font-semibold"
+            >
+              Cancel
+            </button>
+          </span>
+        ),
+        { duration: 10000 }
+      );
     });
-    
-    // In a real application, you'd add a confirmation step
-    // If confirmed, reset all data
-    // resetHealthData();
-    // router.push('/');
+  
+    if (!confirm) return;
+  
+    try {
+      // Call delete API here if needed
+      await axios.delete("http://localhost:3001/delete-account", {
+        withCredentials: true,
+      });
+  
+      resetHealthData(); // your custom function
+      customToast.success("Account deleted successfully");
+      router.push('/');
+    } catch (error) {
+      console.error("Delete account error:", error);
+      customToast.error("Failed to delete account");
+    }
   };
 
   const handleExportData = () => {
@@ -112,10 +144,7 @@ const UserProfile = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast({
-      title: "Data Exported",
-      description: "Your health data has been exported successfully.",
-    });
+    customToast.success("Your health data has been exported successfully.");
   };
 
   if (!isOnboarded) {
@@ -124,9 +153,6 @@ const UserProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="bg-white p-4 rounded-b-3xl shadow-md">
-        <NavBar />
-      </div>
       
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

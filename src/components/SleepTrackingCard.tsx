@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, Moon, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
@@ -238,8 +239,11 @@ Habits: [score]`;
     const aiResponse = await callGeminiAPI(promptForAnalysis);
     
     // Parse the response
+    //@ts-expect-error: no need here
     const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nRECOMMENDATIONS:|\n\nCATEGORY_SCORES:|$)/s);
+    //@ts-expect-error: no need here
     const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCATEGORY_SCORES:|$)/s);
+    //@ts-expect-error: no need here
     const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
     
     // Set AI analysis
@@ -437,26 +441,26 @@ const generateCategoryScores = (userAnswers: Record<number, string>): {[key: str
   return scores;
 };
 
-// Get color for category score
-const getCategoryColor = (score: number): string => {
-  if (score >= 80) return 'text-green-500';
-  if (score >= 65) return 'text-blue-500';
-  if (score >= 50) return 'text-yellow-500';
-  return 'text-red-500';
-};
+  // Get color for category score
+  const getCategoryColor = (score: number): string => {
+    if (score >= 80) return 'text-green-500';
+    if (score >= 65) return 'text-orange-500';
+    if (score >= 50) return 'text-yellow-500';
+    return 'text-red-500';
+  };
 
-// Get background color for progress bar
-const getProgressColor = (score: number): string => {
-  if (score >= 80) return 'bg-green-500';
-  if (score >= 65) return 'bg-blue-500';
-  if (score >= 50) return 'bg-yellow-500';
-  return 'bg-red-500';
-};
+  // Get background color for progress bar
+  const getProgressColor = (score: number): string => {
+    if (score >= 80) return 'bg-green-500';
+    if (score >= 65) return 'bg-orange-500';
+    if (score >= 50) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
 
   return (
     <>
       <Card className="border-0 shadow-lg rounded-3xl overflow-hidden h-full">
-        <CardHeader className="p-4 md:p-6 bg-gradient-to-r from-indigo-500 to-purple-600">
+        <CardHeader className="p-4 md:p-6 bg-gradient-to-r from-orange-500 to-orange-600">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Moon className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -474,7 +478,7 @@ const getProgressColor = (score: number): string => {
               <div className="flex items-baseline">
                 <span className="text-3xl md:text-4xl font-bold">{sleepScore}</span>
                 <span className="text-xs md:text-sm text-gray-500 ml-1">/100</span>
-                <Badge className="ml-2 md:ml-3 bg-indigo-100 text-indigo-800 hover:bg-indigo-200 text-xs">
+                <Badge className="ml-2 md:ml-3 bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs">
                   {sleepScore > 70 ? '+' : ''}{sleepScore - 65}% from avg
                 </Badge>
               </div>
@@ -486,7 +490,7 @@ const getProgressColor = (score: number): string => {
                     key={i} 
                     className="inline-block w-6 md:w-8 h-1.5 rounded-full" 
                     style={{ 
-                      backgroundColor: i < (sleepScore / 10) ? '#4338CA' : '#E0E7FF'
+                      backgroundColor: i < (sleepScore / 10) ? '#F97316' : '#FFEDD5'
                     }}
                   ></span>
                 ))}
@@ -502,7 +506,7 @@ const getProgressColor = (score: number): string => {
                   <span className={`text-xs font-medium ${getCategoryColor(score)}`}>{score}</span>
                 </div>
                 <Progress value={score} className="h-1.5" 
-                  style={{backgroundColor: '#E0E7FF'}}
+                  style={{backgroundColor: '#FFEDD5'}}
                 >
                   <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
                 </Progress>
@@ -516,9 +520,9 @@ const getProgressColor = (score: number): string => {
             <h3 className="font-semibold text-base md:text-lg">AI Recommendations</h3>
             
             {insights.map((insight, index) => (
-              <div key={index} className="flex items-start bg-indigo-50 p-2 md:p-3 rounded-xl">
-                <div className="flex-shrink-0 bg-indigo-100 p-1.5 md:p-2 rounded-full mr-2 md:mr-3">
-                  <span className="flex items-center justify-center w-3 h-3 md:w-4 md:h-4 text-xs font-bold text-indigo-700">{index + 1}</span>
+              <div key={index} className="flex items-start bg-orange-50 p-2 md:p-3 rounded-xl">
+                <div className="flex-shrink-0 bg-orange-100 p-1.5 md:p-2 rounded-full mr-2 md:mr-3">
+                  <span className="flex items-center justify-center w-3 h-3 md:w-4 md:h-4 text-xs font-bold text-orange-700">{index + 1}</span>
                 </div>
                 <div>
                   <p className="text-xs md:text-sm text-gray-800">{insight}</p>
@@ -534,7 +538,7 @@ const getProgressColor = (score: number): string => {
             </div>
             <Button 
               onClick={handleStartQuiz} 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm py-1 px-2 md:py-2 md:px-3"
+              className="bg-orange-600 hover:bg-orange-700 text-white text-xs md:text-sm py-1 px-2 md:py-2 md:px-3"
               disabled={isGeneratingQuestions}
             >
               {isGeneratingQuestions ? (
@@ -571,7 +575,7 @@ const getProgressColor = (score: number): string => {
 
           {isGeneratingQuestions && (
             <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-indigo-500 mb-4" />
+              <Loader2 className="h-12 w-12 animate-spin text-orange-500 mb-4" />
               <p className="text-center text-gray-500">
                 Generating your personalized sleep assessment questions...
               </p>
@@ -581,8 +585,8 @@ const getProgressColor = (score: number): string => {
           {quizComplete ? (
             <div className="space-y-4 py-4">
               <div className="text-center mb-6">
-                <div className="inline-block p-4 rounded-full bg-indigo-100 mb-2">
-                  <Moon className="h-8 w-8 text-indigo-600" />
+                <div className="inline-block p-4 rounded-full bg-orange-100 mb-2">
+                  <Moon className="h-8 w-8 text-orange-600" />
                 </div>
                 <h3 className="text-2xl font-bold">Your Sleep Score: {sleepScore}</h3>
                 <p className="text-gray-500">
@@ -595,15 +599,15 @@ const getProgressColor = (score: number): string => {
               
               {isGeneratingInsights ? (
                 <div className="flex flex-col items-center justify-center py-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mb-2" />
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-2" />
                   <p className="text-center text-gray-500">
                     Analyzing your responses and generating personalized recommendations...
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="bg-indigo-50 p-4 rounded-lg mb-4">
-                    <h4 className="font-medium text-indigo-800 mb-2">AI Analysis</h4>
+                  <div className="bg-orange-50 p-4 rounded-lg mb-4">
+                    <h4 className="font-medium text-orange-800 mb-2">AI Analysis</h4>
                     <p className="text-sm text-gray-700">{aiAnalysis}</p>
                   </div>
                   
@@ -616,8 +620,8 @@ const getProgressColor = (score: number): string => {
                           <span className={`text-sm font-medium ${getCategoryColor(score)}`}>{score}/100</span>
                         </div>
                         <Progress value={score} className="h-2">
-  <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
-</Progress>
+                          <div className={`h-full ${getProgressColor(score)}`} style={{width: `${score}%`}}></div>
+                        </Progress>
                       </div>
                     ))}
                   </div>
@@ -625,9 +629,9 @@ const getProgressColor = (score: number): string => {
                   <div>
                     <h4 className="font-medium mb-2">Personalized Recommendations</h4>
                     {insights.map((insight, index) => (
-                      <div key={index} className="flex items-start bg-indigo-50 p-3 rounded-lg mb-2">
-                        <div className="flex-shrink-0 bg-indigo-100 p-2 rounded-full mr-3">
-                          <span className="flex items-center justify-center w-4 h-4 text-xs font-bold text-indigo-700">{index + 1}</span>
+                      <div key={index} className="flex items-start bg-orange-50 p-3 rounded-lg mb-2">
+                        <div className="flex-shrink-0 bg-orange-100 p-2 rounded-full mr-3">
+                          <span className="flex items-center justify-center w-4 h-4 text-xs font-bold text-orange-700">{index + 1}</span>
                         </div>
                         <p className="text-sm text-gray-800">{insight}</p>
                       </div>
@@ -675,6 +679,7 @@ const getProgressColor = (score: number): string => {
                       }
                     }}
                     disabled={!answers[currentQuestion]}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
                   >
                     {currentQuestion === questions.length - 1 ? "Finish" : "Next"}
                   </Button>

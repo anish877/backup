@@ -9,7 +9,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
+import { customToast } from '@/components/CustomToast';
+import axios from 'axios';
 
 const formSchema = z.object({
   waterIntake: z.coerce.number().min(0, "Water intake cannot be negative"),
@@ -42,46 +43,40 @@ const DailyLog = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const response = await fetch('/api/dailylog', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values),
-      });
-      
-      if (response.ok) {
-        toast.success("Your daily health data has been recorded.");
+
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND}/dailyLog`,
+        values,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true, // if you need to send cookies/session
+        }
+      );
+      console.log(response.data)
+      if (response.data.success) {
+        customToast.success("Your daily health data has been recorded.");
         router.push('/dashboard');
       } else {
-        const error = await response.json();
+        const { error } = response.data;
         throw new Error(error.message || 'Failed to submit daily log');
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to submit daily log");
+      customToast.error(error instanceof Error ? error.message : "Failed to submit daily log");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-orange-500 p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-white">Metrics.IQ</h1>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-orange-600"></div>
-            <div className="w-8 h-8 rounded-full bg-orange-400"></div>
-            <div className="w-8 h-8 rounded-full bg-gray-900"></div>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-white">
       
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-gray-900 text-white p-6 rounded-lg mb-6">
+        <div className="bg-white text-gray-800 p-6 rounded-lg mb-6 border border-gray-100 shadow-sm">
           <div className="flex items-center mb-4">
-            <div className="w-4 h-4 bg-orange-500 rounded mr-2"></div>
-            <h2 className="text-xl font-semibold">Health Improvement</h2>
+            <div className="w-4 h-4 bg-orange-400 rounded mr-2"></div>
+            <h2 className="text-xl font-semibold text-gray-900">Health Improvement</h2>
           </div>
-          <h1 className="text-2xl font-bold mb-6">Daily Health Log</h1>
+          <h1 className="text-2xl font-bold mb-6 text-gray-900">Daily Health Log</h1>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -91,17 +86,17 @@ const DailyLog = () => {
                   name="waterIntake"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Water Intake (L)</FormLabel>
+                      <FormLabel className="text-gray-800">Water Intake (L)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
                           step="0.1" 
                           placeholder="e.g., 2.5" 
-                          className="bg-gray-800 border-gray-700 text-white" 
+                          className="bg-white border-gray-200 text-gray-800 focus:ring-orange-400 focus:border-orange-400" 
                           {...field} 
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-orange-500" />
                     </FormItem>
                   )}
                 />
@@ -111,17 +106,17 @@ const DailyLog = () => {
                   name="weight"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Weight (kg)</FormLabel>
+                      <FormLabel className="text-gray-800">Weight (kg)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
                           step="0.1" 
                           placeholder="e.g., 70.5" 
-                          className="bg-gray-800 border-gray-700 text-white" 
+                          className="bg-white border-gray-200 text-gray-800 focus:ring-orange-400 focus:border-orange-400" 
                           {...field} 
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-orange-500" />
                     </FormItem>
                   )}
                 />
@@ -131,17 +126,17 @@ const DailyLog = () => {
                   name="sleepHours"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Sleep Hours</FormLabel>
+                      <FormLabel className="text-gray-800">Sleep Hours</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
                           step="0.5" 
                           placeholder="e.g., 8" 
-                          className="bg-gray-800 border-gray-700 text-white" 
+                          className="bg-white border-gray-200 text-gray-800 focus:ring-orange-400 focus:border-orange-400" 
                           {...field} 
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-orange-500" />
                     </FormItem>
                   )}
                 />
@@ -151,16 +146,16 @@ const DailyLog = () => {
                   name="steps"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Steps</FormLabel>
+                      <FormLabel className="text-gray-800">Steps</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
                           placeholder="e.g., 8000" 
-                          className="bg-gray-800 border-gray-700 text-white" 
+                          className="bg-white border-gray-200 text-gray-800 focus:ring-orange-400 focus:border-orange-400" 
                           {...field} 
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-orange-500" />
                     </FormItem>
                   )}
                 />
@@ -170,25 +165,25 @@ const DailyLog = () => {
                   name="mood"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Mood</FormLabel>
+                      <FormLabel className="text-gray-800">Mood</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                          <SelectTrigger className="bg-white border-gray-200 text-gray-800 focus:ring-orange-400 focus:border-orange-400">
                             <SelectValue placeholder="Select your mood" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                        <SelectContent className="bg-white border-gray-200 text-gray-800">
                           {moodOptions.map((mood) => (
-                            <SelectItem key={mood} value={mood}>
+                            <SelectItem key={mood} value={mood} className="text-gray-700 hover:bg-orange-50">
                               {mood}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage className="text-orange-500" />
                     </FormItem>
                   )}
                 />
@@ -198,25 +193,25 @@ const DailyLog = () => {
                   name="mealQuality"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Meal Quality</FormLabel>
+                      <FormLabel className="text-gray-800">Meal Quality</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                          <SelectTrigger className="bg-white border-gray-200 text-gray-800 focus:ring-orange-400 focus:border-orange-400">
                             <SelectValue placeholder="Rate meal quality" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                        <SelectContent className="bg-white border-gray-200 text-gray-800">
                           {mealQualityOptions.map((quality) => (
-                            <SelectItem key={quality} value={quality}>
+                            <SelectItem key={quality} value={quality} className="text-gray-700 hover:bg-orange-50">
                               {quality}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage className="text-orange-500" />
                     </FormItem>
                   )}
                 />
@@ -227,21 +222,21 @@ const DailyLog = () => {
                 name="symptoms"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white">Any symptoms today? (optional)</FormLabel>
+                    <FormLabel className="text-gray-800">Any symptoms today? (optional)</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Enter any symptoms you experienced"
-                        className="resize-none bg-gray-800 border-gray-700 text-white"
+                        className="resize-none bg-white border-gray-200 text-gray-800 focus:ring-orange-400 focus:border-orange-400"
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-orange-500" />
                   </FormItem>
                 )}
               />
               
               <div className="flex justify-center pt-4">
-                <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-2">
+                <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-2 shadow-sm">
                   Submit Daily Log
                 </Button>
               </div>
@@ -249,24 +244,24 @@ const DailyLog = () => {
           </Form>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
           <div className="flex items-center mb-4">
-            <div className="w-4 h-4 bg-orange-500 rounded mr-2"></div>
-            <h3 className="text-lg font-semibold">Recent Stats</h3>
+            <div className="w-4 h-4 bg-orange-400 rounded mr-2"></div>
+            <h3 className="text-lg font-semibold text-gray-900">Recent Stats</h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 border rounded-lg">
-              <h4 className="text-3xl font-bold">0L</h4>
-              <p className="text-gray-500">Water Today</p>
+            <div className="p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
+              <h4 className="text-3xl font-bold text-orange-500">0L</h4>
+              <p className="text-gray-600">Water Today</p>
             </div>
-            <div className="p-4 border rounded-lg">
-              <h4 className="text-3xl font-bold">0</h4>
-              <p className="text-gray-500">Steps</p>
+            <div className="p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
+              <h4 className="text-3xl font-bold text-orange-500">0</h4>
+              <p className="text-gray-600">Steps</p>
             </div>
-            <div className="p-4 border rounded-lg">
-              <h4 className="text-3xl font-bold">0h</h4>
-              <p className="text-gray-500">Sleep Last Night</p>
+            <div className="p-4 border border-gray-100 rounded-lg bg-white shadow-sm">
+              <h4 className="text-3xl font-bold text-orange-500">0h</h4>
+              <p className="text-gray-600">Sleep Last Night</p>
             </div>
           </div>
         </div>

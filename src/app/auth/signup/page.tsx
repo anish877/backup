@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
 import axios from 'axios';
+import { customToast } from '@/components/CustomToast';
 
 export default function SignUp() {
   const [username, setUsername] = useState('');
@@ -17,17 +17,17 @@ export default function SignUp() {
     e.preventDefault();
     
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match!');
+      customToast.error('Passwords do not match!');
       return;
     }
 
     if (password.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+        customToast.error('Password must be at least 6 characters long');
       return;
     }
 
     if (username.length < 3) {
-      toast.error('Username must be at least 3 characters long');
+        customToast.error('Username must be at least 3 characters long');
       return;
     }
 
@@ -50,18 +50,18 @@ export default function SignUp() {
       const { data } = response;
 
       if (response.status === 201) {
-        toast.success('Account created successfully!');
+        customToast.success('Account created successfully!');
         router.push('/signin'); // Redirect to sign in page after successful registration
       } else if (response.status === 205) {
-        toast.error('Username already registered');
+        customToast.error('Username already registered');
       } else if (response.status === 207) {
         const errorMessages = data.errors.map((err: any) => err.message).join(', ');
-        toast.error(`Validation error: ${errorMessages}`);
+        customToast.error(`Validation error: ${errorMessages}`);
       } else {
-        toast.error('Something went wrong. Please try again.');
+        customToast.error('Something went wrong. Please try again.');
       }
     } catch (error) {
-      toast.error('Failed to connect to server. Please try again later.');
+        customToast.error('Failed to connect to server. Please try again later.');
       console.error('SignUp Error:', error);
     } finally {
       setIsLoading(false);
