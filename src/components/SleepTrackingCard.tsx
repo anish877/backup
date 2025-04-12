@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import useLogStore from '@/store/manage';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
@@ -29,6 +30,7 @@ const SleepTrackingCard = () => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [questions, setQuestions] = useState<string[]>([]);
+  const { log, setLog, setSleep } = useLogStore()
   const [options, setOptions] = useState<string[][]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [sleepScore, setSleepScore] = useState(78);
@@ -67,8 +69,9 @@ const SleepTrackingCard = () => {
           setAssessmentHistory(parsedData);
           
           if (parsedData.length > 0) {
-            // Sort by date and get the most recent
+            
             const sortedData = parsedData.sort(
+              //@ts-expect-error: no need here
               (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
             );
             const latestAssessment = sortedData[0];
@@ -167,6 +170,7 @@ const SleepTrackingCard = () => {
         setQuestions(parsedQuestions);
         setOptions(parsedOptions);
       }
+      setSleep(true)
     } catch (error) {
       console.error("Error generating questions:", error);
       setDefaultQuestionsAndOptions();
@@ -294,8 +298,11 @@ const SleepTrackingCard = () => {
       const aiResponse = await callGeminiAPI(promptForAnalysis);
       
       // Parse the response
+      //@ts-expect-error: no need here
       const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nRECOMMENDATIONS:|\n\nCATEGORY_SCORES:|$)/s);
+      //@ts-expect-error: no need here
       const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCATEGORY_SCORES:|$)/s);
+      //@ts-expect-error: no need here
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
       
       // Set AI analysis
@@ -557,6 +564,14 @@ const SleepTrackingCard = () => {
     // No need to use sessionStorage since we're already using localStorage for history
     router.push('/sleep');
   };
+
+   useEffect(() => {
+      if(log === "sleep"){
+        handleStartQuiz()
+      } else{
+        setShowQuiz(false)
+      }
+    }, [log, setLog])
 
   return (
     <>

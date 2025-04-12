@@ -30,6 +30,15 @@ export type Feedback = {
   motivation: string;
 };
 
+export interface DailyLog {
+  id?: string;
+  date: Date;
+  nutrition?: NutritionLog;
+  sleep?: SleepLog;
+  mood?: MoodLog;
+  water?: WaterLog;
+}
+
 export type UserProfile = {
   age: number;
   weight: number;
@@ -38,6 +47,51 @@ export type UserProfile = {
   avatarUrl?: string;
   symptoms?: string[]
 };
+
+interface NutritionLog {
+  id?: string;
+  finalScore: number;
+  protein: number;
+  fats: number;
+  carbs: number;
+  vitamins: number;
+  calories: number;
+  dailyRecommndations: string[];
+  date: Date;
+}
+
+interface SleepLog {
+  id?: string;
+  finalScore: number;
+  quality: number;
+  duration: number;
+  consistency: number;
+  environment: number;
+  habits: number;
+  dailyRecommndations: string[];
+  date: Date;
+}
+
+interface MoodLog {
+  id?: string;
+  finalScore: number;
+  happiness: number;
+  energy: number;
+  focus: number;
+  calm: number;
+  optimism: number;
+  dailyRecommndations: string[];
+  date: Date;
+}
+
+interface WaterLog {
+  id?: string;
+  finalScore: number;
+  dailyRecommndations: string[];
+  date: Date;
+}
+
+
 
 // The shape of our health store
 interface HealthState {

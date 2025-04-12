@@ -10,9 +10,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Activity, Trash2, Loader2 } from 'lucide-react';
+import { Activity, Trash2, Loader2, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useHealthStore, getHealthStats, formatActivityLevel } from '@/store/healthStore';
+import { useHealthStore, getHealthStats, formatActivityLevel, DailyLog } from '@/store/healthStore';
 import axios from 'axios';
 import { customToast } from '@/components/CustomToast';
 
@@ -40,12 +40,13 @@ const UserProfile = () => {
     isOnboarded, 
     dailyLogs, 
     resetHealthData, 
-    setGoal 
+    setHealthGoal 
   } = useHealthStore();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState<{ username: string, goal: string } | null>(null);
+  const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
   const [error, setError] = useState('');
 
   // Fetch user data from API
@@ -59,6 +60,11 @@ const UserProfile = () => {
         
         setUserData(response.data);
         
+        // Set today's log if available
+        if (response.data.dailyLogs && response.data.dailyLogs.length > 0) {
+          setTodayLog(response.data.dailyLogs[0]);
+        }
+        
         // Update store with fetched data
         if (response.data) {
           // Update local store with user data
@@ -71,7 +77,7 @@ const UserProfile = () => {
           
           // Set goal from API data if available
           if (response.data.goal) {
-            setGoal(response.data.goal);
+            setHealthGoal(response.data.goal);
           }
         }
         
@@ -81,7 +87,7 @@ const UserProfile = () => {
         setError('Failed to load user data');
         setLoading(false);
         
-        // Handle unauthorized errors
+        // @ts-expect-error: no need here
         if (err.response && (err.response.status === 401 || err.response.status === 403)) {
           customToast.error('Session expired. Please login again.');
           router.push('/login');
@@ -131,6 +137,10 @@ const UserProfile = () => {
       const response = await axios.put(`${API_URL}/users/profile`, {
         username: values.username,
         goal: values.goal,
+        age: Number(values.age),
+        weight: Number(values.weight),
+        gender: values.gender,
+        activityLevel: values.activityLevel
       }, {
         withCredentials: true
       });
@@ -144,20 +154,29 @@ const UserProfile = () => {
       });
       
       if (values.goal) {
-        setGoal(values.goal);
+        setHealthGoal(values.goal);
       }
       
       setUserData(response.data);
       customToast.success("Your profile has been successfully updated.");
       setIsEditing(false);
+      
+      // Refresh data to get the updated log
+      window.location.reload();
     } catch (err) {
       console.error("Error updating profile:", err);
       customToast.error("Failed to update profile");
     }
   };
 
-  // Get the health statistics
-  const stats = getHealthStats(dailyLogs);
+  // Get the health statistics from user data
+  const stats = userData?.stats || {
+    avgSleep: 0,
+    avgWater: 0,
+    avgMood: 0,
+    totalExerciseMinutes: 0,
+    logsCount: 0
+  };
 
   const handleDeleteAccount = async () => {
     const confirm = window.confirm("Are you sure you want to delete your account? This action cannot be undone.");
@@ -202,6 +221,12 @@ const UserProfile = () => {
     customToast.success("Your health data has been exported successfully.");
   };
 
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
@@ -230,7 +255,6 @@ const UserProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <NavBar />
       
       <div className="container mx-auto px-4 py-6">
         {userData && (
@@ -478,85 +502,187 @@ const UserProfile = () => {
                       </div>
                     </div>
                     
-                    {userData && userData.dailyLogs && userData.dailyLogs.length > 0 && (
+                    {/* Today's Log Section */}
+                    {todayLog ? (
                       <div className="mt-6">
-                        <h3 className="text-md font-semibold mb-2">Recent Logs</h3>
-                        <div className="bg-white rounded-lg p-4 shadow-sm border">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left py-2">Date</th>
-                                <th className="text-left py-2">Weight</th>
-                                <th className="text-left py-2">Sleep</th>
-                                <th className="text-left py-2">Mood</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {userData.dailyLogs.slice(0, 5).map((log) => (
-                                <tr key={log.id} className="border-b last:border-b-0">
-                                  <td className="py-2">{new Date(log.date).toLocaleDateString()}</td>
-                                  <td className="py-2">{log.weight} kg</td>
-                                  <td className="py-2">{log.sleepHours} hrs</td>
-                                  <td className="py-2">{log.mood}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Calendar className="h-5 w-5 text-brandOrange" />
+                          <h3 className="text-lg font-semibold">Today's Log</h3>
+                          <span className="text-sm text-gray-500">
+                            {formatDate(todayLog.date.toString())}
+                          </span>
                         </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Account Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Button 
-                        variant="default" 
-                        className="w-full"
-                        onClick={() => router.push('/goal')}
-                      >
-                        Change Health Goal
-                      </Button>
-                    </div>
-                    
-                    <div>
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={handleExportData}
-                      >
-                        Export My Health Data
-                      </Button>
-                    </div>
-                    
-                    <div>
-                      <Button 
-                        variant="outline" 
-                        className="w-full text-red-500 border-red-500 hover:bg-red-50"
-                        onClick={handleDeleteAccount}
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {todayLog.sleep && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-blue-600 mb-2">Sleep</h4>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Quality:</span>
+                                <span>{todayLog.sleep.quality}/10</span>
+                              </div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Duration:</span>
+                                <span>{todayLog.sleep.duration} hours</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.sleep.finalScore}/10</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {todayLog.mood && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-yellow-600 mb-2">Mood</h4>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Happiness:</span>
+                                <span>{todayLog.mood.happiness}/10</span>
+                              </div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Energy:</span>
+                                <span>{todayLog.mood.energy}/10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.mood.finalScore}/10</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {todayLog.water && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-green-600 mb-2">Water</h4>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.water.finalScore}/10</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {todayLog.nutrition && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-red-600 mb-2">Nutrition</h4>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Protein:</span>
+                                <span>{todayLog.nutrition.protein}/10</span>
+                              </div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Calories:</span>
+                                <span>{todayLog.nutrition.calories} kcal</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.nutrition.finalScore}/10</span>
+                              </div>
+                            </div>
+                            )}
+                            </div>
+                            {/* @ts-expect-error: no need here */}
+                            {(todayLog.sleep?.dailyRecommndations?.length > 0 || 
+                            // @ts-expect-error: no need here
+                              todayLog.mood?.dailyRecommndations?.length > 0 || 
+                              // @ts-expect-error: no need here
+                              todayLog.water?.dailyRecommndations?.length > 0 || 
+                              // @ts-expect-error: no need here
+                              todayLog.nutrition?.dailyRecommndations?.length > 0) && (
+                                <div className="mt-4 bg-white rounded-lg p-4 shadow-sm border">
+                                  <h4 className="font-medium text-brandOrange mb-2">Today's Recommendations</h4>
+                                  <ul className="space-y-1">
+                                    {todayLog.sleep?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`sleep-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-blue-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                    {todayLog.mood?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`mood-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-yellow-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                    {todayLog.water?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`water-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-green-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                    {todayLog.nutrition?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`nutrition-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-red-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                          </div>
                         ) : (
-                          <Trash2 className="h-4 w-4 mr-2" />
+                          <div className="mt-6 bg-white rounded-lg p-6 shadow-sm border text-center">
+                            <h3 className="text-lg font-semibold mb-2">No Log For Today</h3>
+                            <p className="text-gray-600 mb-4">
+                              You haven't created a health log entry for today yet.
+                            </p>
+                            <Button 
+                              className="bg-brandOrange hover:bg-brandOrange/90"
+                              onClick={() => router.push('/log')}
+                            >
+                              Create Today's Log
+                            </Button>
+                          </div>
                         )}
-                        Delete Account
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Account Settings</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Button 
+                            variant="default" 
+                            className="w-full bg-brandOrange hover:bg-brandOrange/90"
+                            onClick={() => router.push('/goal')}
+                          >
+                            Change Health Goal
+                          </Button>
+                        </div>
+                        
+                        <div>
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={handleExportData}
+                          >
+                            Export My Health Data
+                          </Button>
+                        </div>
+                        
+                        <div>
+                          <Button 
+                            variant="outline" 
+                            className="w-full text-red-500 border-red-500 hover:bg-red-50"
+                            onClick={handleDeleteAccount}
+                            disabled={loading}
+                          >
+                            {loading ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 mr-2" />
+                            )}
+                            Delete Account
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-};
-
-export default UserProfile;
+      );
+    };
+    
+    export default UserProfile;

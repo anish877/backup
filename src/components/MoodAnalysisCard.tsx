@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
+import useLogStore from '@/store/manage';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
@@ -30,6 +31,7 @@ const MoodAnalysisCard = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [questions, setQuestions] = useState<string[]>([]);
   const [responses, setResponses] = useState<Record<number, string>>({});
+  const { log, setLog, setMood } = useLogStore()
   const [currentResponse, setCurrentResponse] = useState("");
   const [moodScore, setMoodScore] = useState(72);
   const [assessmentComplete, setAssessmentComplete] = useState(false);
@@ -97,6 +99,7 @@ const MoodAnalysisCard = () => {
       } else {
         setQuestions(parsedQuestions);
       }
+      setMood(true)
     } catch (error) {
       console.error("Error generating questions:", error);
       setDefaultQuestions();
@@ -297,6 +300,14 @@ Optimism: [score]`;
   const goToDetailedAnalysis = () => {
     router.push('/mood');
   };
+
+  useEffect(() => {
+    if(log === 'mood'){
+      handleStartAssessment()
+    } else{
+      setShowAssessment(false)
+    }
+  }, [log, setLog])
 
   return (
     <>

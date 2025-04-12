@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Droplet, Plus, Minus } from 'lucide-react';
+import useLogStore from '@/store/manage';
 
 const WaterGlassTracker = () => {
   const [waterIntake, setWaterIntake] = useState(3);
   const totalGlasses = 8;
+
+  
   
   const incrementWater = () => {
     if (waterIntake < totalGlasses) {
@@ -17,7 +20,6 @@ const WaterGlassTracker = () => {
     }
   };
   
-  // Calculate percentage for progress bar
   const progressPercentage = (waterIntake / totalGlasses) * 100;
   
   return (

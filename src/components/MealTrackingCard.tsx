@@ -1,5 +1,4 @@
 "use client";
-'use client'
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Utensils, Settings, ArrowRight, Loader2, BarChart, History } from 'lucide-react';
@@ -19,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import useLogStore from '@/store/manage';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
@@ -31,6 +31,7 @@ const MealTrackingCard = () => {
   const [showMealHistory, setShowMealHistory] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [mealType, setMealType] = useState<string>("");
+  const { log, setLog, setMeal } = useLogStore()
   const [mealDescription, setMealDescription] = useState<string>("");
   const [mealTime, setMealTime] = useState<string>("");
   const [nutritionScore, setNutritionScore] = useState(72);
@@ -160,10 +161,13 @@ OVERALL_SCORE: [score]`;
       // Call Gemini API
       const aiResponse = await callGeminiAPI(promptForAnalysis);
       
-      // Parse the response
+      
+      //@ts-expect-error: no need here
       const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nRECOMMENDATIONS:|\n\nCALORIES:|\n\nCATEGORY_SCORES:|$)/s);
+      //@ts-expect-error: no need here
       const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCALORIES:|\n\nCATEGORY_SCORES:|$)/s);
       const caloriesMatch = aiResponse.match(/CALORIES:\s*(\d+)/);
+      //@ts-expect-error: no need here
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)(?=\n\nOVERALL_SCORE:|$)/s);
       const overallScoreMatch = aiResponse.match(/OVERALL_SCORE:\s*(\d+)/);
       
@@ -276,6 +280,7 @@ OVERALL_SCORE: [score]`;
       
       // Set last assessment date
       setLastAssessmentDate("Just now");
+      setMeal(true)
       
     } catch (error) {
       console.error("Error generating meal analysis:", error);
@@ -360,6 +365,14 @@ OVERALL_SCORE: [score]`;
   const goToDetailedAnalysis = () => {
     router.push('/meal');
   };
+
+  useEffect(() => {
+    if(log === 'meal'){
+      handleStartEntry()
+    } else{
+      setShowMealEntry(false)
+    }
+  }, [log, setLog])
 
   return (
     <>
