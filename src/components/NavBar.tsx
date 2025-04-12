@@ -57,7 +57,7 @@ const NavBar = () => {
 
   return (
     <>
-      <div className="flex items-center justify-between w-full z-40 px-4 py-3">
+      <div className="flex items-center justify-between sticky top-0 bg-white border-b-2 w-full z-40 px-4 py-3">
         <div className="flex items-center space-x-3">
           <div className="flex items-center">
             <div className="flex flex-col">

@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 const days = ['Saturday', 'Monday', 'Tuesday', 'Wednesday'];
 const hours = ['1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm'];
 
-// Generate random data for the chart
 const generateData = () => {
   const data = [];
   for (let i = 0; i < hours.length; i++) {

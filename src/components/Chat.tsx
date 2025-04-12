@@ -114,7 +114,7 @@ const ChatComponent: React.FC = () => {
       <div className="flex-1 p-4 pb-32 mt-24 overflow-y-auto relative bg-white">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-orange-500">
-            <p className="text-center">Chat with Zero</p>
+            <p className="text-center">Chat with AI</p>
           </div>
         ) : (
           messages.map((message) => (
@@ -241,7 +241,7 @@ const ChatComponent: React.FC = () => {
                 className="w-full px-3 py-2 text-base font-light text-gray-800 placeholder:text-gray-400
                   outline-none focus:ring-0 focus:border-transparent
                   rounded-lg resize-none font-sans bg-orange-50"
-                placeholder="Message Zero..."
+                placeholder="Message AI..."
                 rows={1}
                 value={input}
                 onKeyDown={handleKeyDown}

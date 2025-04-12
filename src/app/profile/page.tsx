@@ -10,12 +10,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Activity, Trash2 } from 'lucide-react';
+import { Activity, Trash2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useHealthStore, getHealthStats, formatActivityLevel } from '@/store/healthStore';
 import axios from 'axios';
 import { customToast } from '@/components/CustomToast';
-import toast from 'react-hot-toast';
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'http://localhost:3001';
 
 const formSchema = z.object({
   age: z.coerce.number().min(1, "Age is required"),
@@ -26,31 +27,91 @@ const formSchema = z.object({
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'very active'], {
     required_error: "Please select your activity level.",
   }),
+  username: z.string().min(3, "Username is required and must be at least 3 characters"),
+  goal: z.string().optional(),
 });
 
 const UserProfile = () => {
-  const { healthGoal, userProfile, setUserProfile, updateUserProfile, isOnboarded, dailyLogs, resetHealthData } = useHealthStore();
+  const { 
+    healthGoal, 
+    userProfile, 
+    setUserProfile, 
+    updateUserProfile, 
+    isOnboarded, 
+    dailyLogs, 
+    resetHealthData, 
+    setGoal 
+  } = useHealthStore();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+  const [error, setError] = useState('');
+
+  // Fetch user data from API
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_URL}/users/profile`, {
+          withCredentials: true, // Important for sending cookies
+        });
+        
+        setUserData(response.data);
+        
+        // Update store with fetched data
+        if (response.data) {
+          // Update local store with user data
+          updateUserProfile({
+            age: userProfile.age, // Keep existing data
+            weight: userProfile.weight, // Keep existing data
+            gender: userProfile.gender, // Keep existing data
+            activityLevel: userProfile.activityLevel, // Keep existing data
+          });
+          
+          // Set goal from API data if available
+          if (response.data.goal) {
+            setGoal(response.data.goal);
+          }
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        setError('Failed to load user data');
+        setLoading(false);
+        
+        // Handle unauthorized errors
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          customToast.error('Session expired. Please login again.');
+          router.push('/login');
+        }
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   // Redirect to goal setup if not onboarded
   useEffect(() => {
-    if (!isOnboarded) {
+    if (!isOnboarded && !loading) {
       router.push('/goal');
     }
-  }, [isOnboarded, router]);
+  }, [isOnboarded, router, loading]);
 
   // Reset form when toggling edit mode
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && userData) {
       form.reset({
         age: userProfile.age || 0,
         weight: userProfile.weight || 0,
         gender: userProfile.gender || undefined,
         activityLevel: userProfile.activityLevel || undefined,
+        username: userData.username || '',
+        goal: userData.goal || '',
       });
     }
-  }, [isEditing]);
+  }, [isEditing, userData]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,70 +120,64 @@ const UserProfile = () => {
       weight: userProfile.weight || 0,
       gender: userProfile.gender || undefined,
       activityLevel: userProfile.activityLevel || undefined,
+      username: userData?.username || '',
+      goal: userData?.goal || healthGoal || '',
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Update user profile using the updateUserProfile action
-    updateUserProfile({
-      age: Number(values.age),
-      weight: Number(values.weight),
-      gender: values.gender,
-      activityLevel: values.activityLevel,
-    });
-    
-    customToast.success("Your profile has been successfully updated.");
-    
-    setIsEditing(false);
+    try {
+      // Update user profile in API
+      const response = await axios.put(`${API_URL}/users/profile`, {
+        username: values.username,
+        goal: values.goal,
+      }, {
+        withCredentials: true
+      });
+      
+      // Update local store
+      updateUserProfile({
+        age: Number(values.age),
+        weight: Number(values.weight),
+        gender: values.gender,
+        activityLevel: values.activityLevel,
+      });
+      
+      if (values.goal) {
+        setGoal(values.goal);
+      }
+      
+      setUserData(response.data);
+      customToast.success("Your profile has been successfully updated.");
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      customToast.error("Failed to update profile");
+    }
   };
 
   // Get the health statistics
   const stats = getHealthStats(dailyLogs);
 
   const handleDeleteAccount = async () => {
-    const confirm = await new Promise<boolean>((resolve) => {
-      toast(
-        (t) => (
-          <span>
-            Are you sure you want to delete your account? <br />
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                resolve(true);
-              }}
-              className="text-red-500 font-semibold mr-2"
-            >
-              Yes
-            </button>
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                resolve(false);
-              }}
-              className="text-gray-600 font-semibold"
-            >
-              Cancel
-            </button>
-          </span>
-        ),
-        { duration: 10000 }
-      );
-    });
-  
+    const confirm = window.confirm("Are you sure you want to delete your account? This action cannot be undone.");
+    
     if (!confirm) return;
   
     try {
-      // Call delete API here if needed
-      await axios.delete("http://localhost:3001/delete-account", {
+      setLoading(true);
+      // Call delete API here
+      await axios.delete(`${API_URL}/users/profile`, {
         withCredentials: true,
       });
   
-      resetHealthData(); // your custom function
+      resetHealthData(); // Reset local store
       customToast.success("Account deleted successfully");
-      router.push('/');
+      router.push('/login');
     } catch (error) {
       console.error("Delete account error:", error);
       customToast.error("Failed to delete account");
+      setLoading(false);
     }
   };
 
@@ -147,14 +202,44 @@ const UserProfile = () => {
     customToast.success("Your health data has been exported successfully.");
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-brandOrange" />
+        <p className="mt-4 text-lg font-medium">Loading your profile...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 text-lg font-medium mb-4">{error}</p>
+          <Button onClick={() => router.push('/login')}>
+            Return to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!isOnboarded) {
-    return null; 
+    return null; // This will prevent flash before redirect
   }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
+      <NavBar />
       
       <div className="container mx-auto px-4 py-6">
+        {userData && (
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold">Welcome, {userData.username}!</h1>
+            <p className="text-gray-600">Manage your profile and health data</p>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1">
             <Card>
@@ -177,10 +262,15 @@ const UserProfile = () => {
                     <Activity className="h-5 w-5" />
                     <span className="font-medium">Current Goal</span>
                   </div>
-                  <div className="text-xl font-bold">{healthGoal || "No goal set"}</div>
+                  <div className="text-xl font-bold">{userData?.goal || healthGoal || "No goal set"}</div>
                 </div>
                 
                 <div className="space-y-3 text-left">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Username:</span>
+                    <span className="font-medium">{userData?.username || "Not set"}</span>
+                  </div>
+                  
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Age:</span>
                     <span className="font-medium">{userProfile.age || "Not set"}</span>
@@ -228,6 +318,34 @@ const UserProfile = () => {
                 <CardContent>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                      <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter your username" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="goal"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Health Goal</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter your health goal" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -359,6 +477,34 @@ const UserProfile = () => {
                         <p className="text-xs opacity-80">minutes</p>
                       </div>
                     </div>
+                    
+                    {userData && userData.dailyLogs && userData.dailyLogs.length > 0 && (
+                      <div className="mt-6">
+                        <h3 className="text-md font-semibold mb-2">Recent Logs</h3>
+                        <div className="bg-white rounded-lg p-4 shadow-sm border">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left py-2">Date</th>
+                                <th className="text-left py-2">Weight</th>
+                                <th className="text-left py-2">Sleep</th>
+                                <th className="text-left py-2">Mood</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {userData.dailyLogs.slice(0, 5).map((log) => (
+                                <tr key={log.id} className="border-b last:border-b-0">
+                                  <td className="py-2">{new Date(log.date).toLocaleDateString()}</td>
+                                  <td className="py-2">{log.weight} kg</td>
+                                  <td className="py-2">{log.sleepHours} hrs</td>
+                                  <td className="py-2">{log.mood}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 
@@ -392,8 +538,13 @@ const UserProfile = () => {
                         variant="outline" 
                         className="w-full text-red-500 border-red-500 hover:bg-red-50"
                         onClick={handleDeleteAccount}
+                        disabled={loading}
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
+                        {loading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-2" />
+                        )}
                         Delete Account
                       </Button>
                     </div>

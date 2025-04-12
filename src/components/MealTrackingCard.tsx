@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, Utensils, ArrowRight, Loader2, AlertTriangle, Calendar, History } from 'lucide-react';
@@ -239,6 +240,12 @@ OVERALL_SCORE: [score]`;
         analysis: mealAnalysis,
         categories: categoryScores
       };
+
+      try{
+
+      } catch (error) {
+
+      }
       
       setMealHistory(prev => [...prev, newMeal]);
       
