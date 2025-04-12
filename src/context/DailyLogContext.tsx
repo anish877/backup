@@ -3,6 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { customToast } from '@/components/CustomToast';
+import { useAuth } from './AuthContext';
 
 interface DailyLogContextType {
   isDailyLogCompleted: boolean;
@@ -42,6 +43,7 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState<boolean>(false);
   const Router = useRouter()
+  const { isAuthenticated } = useAuth()
 
 
   const openDailyLogForm = () => {
@@ -110,11 +112,10 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
 
     checkDailyLogStatus();
     
-    // Check every hour if the page remains open
     const intervalId = setInterval(checkDailyLogStatus, 60 * 60 * 1000);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [isAuthenticated]);
 
   const value = {
     isDailyLogCompleted,

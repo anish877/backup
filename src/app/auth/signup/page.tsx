@@ -32,7 +32,6 @@ export default function SignUp() {
     }
 
     setIsLoading(true);
-    console.log('hi there')
 
     try {
 
@@ -51,7 +50,7 @@ export default function SignUp() {
 
       if (response.status === 201) {
         customToast.success('Account created successfully!');
-        router.push('/signin'); // Redirect to sign in page after successful registration
+        router.push('/auth/signin'); 
       } else if (response.status === 205) {
         customToast.error('Username already registered');
       } else if (response.status === 207) {
@@ -62,7 +61,7 @@ export default function SignUp() {
       }
     } catch (error) {
         customToast.error('Failed to connect to server. Please try again later.');
-      console.error('SignUp Error:', error);
+        console.error('SignUp Error:', error);
     } finally {
       setIsLoading(false);
     }
