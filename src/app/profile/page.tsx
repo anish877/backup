@@ -15,7 +15,22 @@ import { useRouter } from 'next/navigation';
 import { useHealthStore, getHealthStats, formatActivityLevel, DailyLog } from '@/store/healthStore';
 import axios from 'axios';
 import { customToast } from '@/components/CustomToast';
+export interface UserStats {
+  avgSleep: number;
+  avgWater: number;
+  avgMood: number;
+  totalExerciseMinutes: number;
+  logsCount: number;
+}
 
+// Update the API response type for the user profile
+export interface UserProfileResponse {
+  id: string;
+  username: string;
+  goal: string;
+  dailyLogs: DailyLog[];
+  stats: UserStats;
+}
 const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'http://localhost:3001';
 
 const formSchema = z.object({
@@ -45,7 +60,7 @@ const UserProfile = () => {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<{ username: string, goal: string } | null>(null);
+  const [userData, setUserData] = useState<UserProfileResponse | null>(null);
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
   const [error, setError] = useState('');
 
