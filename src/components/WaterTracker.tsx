@@ -1,6 +1,7 @@
+"use client";
 import React from 'react';
 import { MessageSquare, ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 const MedicalAIAssistant = () => {
   const router = useRouter()
