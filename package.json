@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "npm rebuild"
+    "postinstall": "npx lightningcss --version || true"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
