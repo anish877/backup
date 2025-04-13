@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
+import useLogStore from '@/store/manage';
 import axios from 'axios';
 
 // Initialize Gemini API client
@@ -31,6 +32,7 @@ const MoodAnalysisCard = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [questions, setQuestions] = useState<string[]>([]);
   const [responses, setResponses] = useState<Record<number, string>>({});
+  const { log, setLog, setMood } = useLogStore()
   const [currentResponse, setCurrentResponse] = useState("");
   const [moodScore, setMoodScore] = useState(72);
   const [assessmentComplete, setAssessmentComplete] = useState(false);
@@ -144,6 +146,7 @@ const MoodAnalysisCard = () => {
       } else {
         setQuestions(parsedQuestions);
       }
+      setMood(true)
     } catch (error) {
       console.error("Error generating questions:", error);
       setDefaultQuestions();
@@ -245,9 +248,11 @@ Optimism: [score]`;
       const aiResponse = await callGeminiAPI(promptForAnalysis);
       
       // Parse the response for category scores
+      //@ts-expect-error: no need here
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
       
       // Parse the response for recommendations
+      //@ts-expect-error: no need here
       const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=CATEGORY_SCORES)/s);
       let parsedRecommendations: string[] = [];
       
@@ -379,6 +384,14 @@ Optimism: [score]`;
   const goToDetailedAnalysis = () => {
     router.push('/mood');
   };
+
+  useEffect(() => {
+    if(log === 'mood'){
+      handleStartAssessment()
+    } else{
+      setShowAssessment(false)
+    }
+  }, [log, setLog])
 
   return (
     <>

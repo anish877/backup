@@ -4,6 +4,21 @@ import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import axios from 'axios';
 
+const days = ['Saturday', 'Monday', 'Tuesday', 'Wednesday'];
+const hours = ['1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm'];
+
+const generateData = () => {
+  const data = [];
+  for (let i = 0; i < hours.length; i++) {
+    data.push({
+      hour: hours[i],
+      value: Math.floor(Math.random() * 400) + 100,
+      value2: Math.floor(Math.random() * 300) + 50,
+    });
+  }
+  return data;
+};
+
 const HealthImprovementChart = () => {
   const [healthData, setHealthData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

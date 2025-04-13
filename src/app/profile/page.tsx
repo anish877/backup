@@ -10,12 +10,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Activity, Trash2 } from 'lucide-react';
+import { Activity, Trash2, Loader2, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useHealthStore, getHealthStats, formatActivityLevel } from '@/store/healthStore';
+import { useHealthStore, getHealthStats, formatActivityLevel, DailyLog } from '@/store/healthStore';
 import axios from 'axios';
 import { customToast } from '@/components/CustomToast';
-import toast from 'react-hot-toast';
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'http://localhost:3001';
 
 const formSchema = z.object({
   age: z.coerce.number().min(1, "Age is required"),
@@ -26,31 +27,97 @@ const formSchema = z.object({
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'very active'], {
     required_error: "Please select your activity level.",
   }),
+  username: z.string().min(3, "Username is required and must be at least 3 characters"),
+  goal: z.string().optional(),
 });
 
 const UserProfile = () => {
-  const { healthGoal, userProfile, setUserProfile, updateUserProfile, isOnboarded, dailyLogs, resetHealthData } = useHealthStore();
+  const { 
+    healthGoal, 
+    userProfile, 
+    setUserProfile, 
+    updateUserProfile, 
+    isOnboarded, 
+    dailyLogs, 
+    resetHealthData, 
+    setHealthGoal 
+  } = useHealthStore();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<{ username: string, goal: string } | null>(null);
+  const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
+  const [error, setError] = useState('');
+
+  // Fetch user data from API
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_URL}/users/profile`, {
+          withCredentials: true, // Important for sending cookies
+        });
+        
+        setUserData(response.data);
+        
+        // Set today's log if available
+        if (response.data.dailyLogs && response.data.dailyLogs.length > 0) {
+          setTodayLog(response.data.dailyLogs[0]);
+        }
+        
+        // Update store with fetched data
+        if (response.data) {
+          // Update local store with user data
+          updateUserProfile({
+            age: userProfile.age, // Keep existing data
+            weight: userProfile.weight, // Keep existing data
+            gender: userProfile.gender, // Keep existing data
+            activityLevel: userProfile.activityLevel, // Keep existing data
+          });
+          
+          // Set goal from API data if available
+          if (response.data.goal) {
+            setHealthGoal(response.data.goal);
+          }
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        setError('Failed to load user data');
+        setLoading(false);
+        
+        // @ts-expect-error: no need here
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          customToast.error('Session expired. Please login again.');
+          router.push('/login');
+        }
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   // Redirect to goal setup if not onboarded
   useEffect(() => {
-    if (!isOnboarded) {
+    if (!isOnboarded && !loading) {
       router.push('/goal');
     }
-  }, [isOnboarded, router]);
+  }, [isOnboarded, router, loading]);
 
   // Reset form when toggling edit mode
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && userData) {
       form.reset({
         age: userProfile.age || 0,
         weight: userProfile.weight || 0,
         gender: userProfile.gender || undefined,
         activityLevel: userProfile.activityLevel || undefined,
+        username: userData.username || '',
+        goal: userData.goal || '',
       });
     }
-  }, [isEditing]);
+  }, [isEditing, userData]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,70 +126,77 @@ const UserProfile = () => {
       weight: userProfile.weight || 0,
       gender: userProfile.gender || undefined,
       activityLevel: userProfile.activityLevel || undefined,
+      username: userData?.username || '',
+      goal: userData?.goal || healthGoal || '',
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Update user profile using the updateUserProfile action
-    updateUserProfile({
-      age: Number(values.age),
-      weight: Number(values.weight),
-      gender: values.gender,
-      activityLevel: values.activityLevel,
-    });
-    
-    customToast.success("Your profile has been successfully updated.");
-    
-    setIsEditing(false);
+    try {
+      // Update user profile in API
+      const response = await axios.put(`${API_URL}/users/profile`, {
+        username: values.username,
+        goal: values.goal,
+        age: Number(values.age),
+        weight: Number(values.weight),
+        gender: values.gender,
+        activityLevel: values.activityLevel
+      }, {
+        withCredentials: true
+      });
+      
+      // Update local store
+      updateUserProfile({
+        age: Number(values.age),
+        weight: Number(values.weight),
+        gender: values.gender,
+        activityLevel: values.activityLevel,
+      });
+      
+      if (values.goal) {
+        setHealthGoal(values.goal);
+      }
+      
+      setUserData(response.data);
+      customToast.success("Your profile has been successfully updated.");
+      setIsEditing(false);
+      
+      // Refresh data to get the updated log
+      window.location.reload();
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      customToast.error("Failed to update profile");
+    }
   };
 
-  // Get the health statistics
-  const stats = getHealthStats(dailyLogs);
+  // Get the health statistics from user data
+  const stats = userData?.stats || {
+    avgSleep: 0,
+    avgWater: 0,
+    avgMood: 0,
+    totalExerciseMinutes: 0,
+    logsCount: 0
+  };
 
   const handleDeleteAccount = async () => {
-    const confirm = await new Promise<boolean>((resolve) => {
-      toast(
-        (t) => (
-          <span>
-            Are you sure you want to delete your account? <br />
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                resolve(true);
-              }}
-              className="text-red-500 font-semibold mr-2"
-            >
-              Yes
-            </button>
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                resolve(false);
-              }}
-              className="text-gray-600 font-semibold"
-            >
-              Cancel
-            </button>
-          </span>
-        ),
-        { duration: 10000 }
-      );
-    });
-  
+    const confirm = window.confirm("Are you sure you want to delete your account? This action cannot be undone.");
+    
     if (!confirm) return;
   
     try {
-      // Call delete API here if needed
-      await axios.delete("http://localhost:3001/delete-account", {
+      setLoading(true);
+      // Call delete API here
+      await axios.delete(`${API_URL}/users/profile`, {
         withCredentials: true,
       });
   
-      resetHealthData(); // your custom function
+      resetHealthData(); // Reset local store
       customToast.success("Account deleted successfully");
-      router.push('/');
+      router.push('/login');
     } catch (error) {
       console.error("Delete account error:", error);
       customToast.error("Failed to delete account");
+      setLoading(false);
     }
   };
 
@@ -147,14 +221,49 @@ const UserProfile = () => {
     customToast.success("Your health data has been exported successfully.");
   };
 
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-brandOrange" />
+        <p className="mt-4 text-lg font-medium">Loading your profile...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 text-lg font-medium mb-4">{error}</p>
+          <Button onClick={() => router.push('/login')}>
+            Return to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!isOnboarded) {
-    return null; 
+    return null; // This will prevent flash before redirect
   }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       
       <div className="container mx-auto px-4 py-6">
+        {userData && (
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold">Welcome, {userData.username}!</h1>
+            <p className="text-gray-600">Manage your profile and health data</p>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1">
             <Card>
@@ -177,10 +286,15 @@ const UserProfile = () => {
                     <Activity className="h-5 w-5" />
                     <span className="font-medium">Current Goal</span>
                   </div>
-                  <div className="text-xl font-bold">{healthGoal || "No goal set"}</div>
+                  <div className="text-xl font-bold">{userData?.goal || healthGoal || "No goal set"}</div>
                 </div>
                 
                 <div className="space-y-3 text-left">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Username:</span>
+                    <span className="font-medium">{userData?.username || "Not set"}</span>
+                  </div>
+                  
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Age:</span>
                     <span className="font-medium">{userProfile.age || "Not set"}</span>
@@ -228,6 +342,34 @@ const UserProfile = () => {
                 <CardContent>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                      <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter your username" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="goal"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Health Goal</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter your health goal" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -359,53 +501,188 @@ const UserProfile = () => {
                         <p className="text-xs opacity-80">minutes</p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Account Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Button 
-                        variant="default" 
-                        className="w-full"
-                        onClick={() => router.push('/goal')}
-                      >
-                        Change Health Goal
-                      </Button>
-                    </div>
                     
-                    <div>
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={handleExportData}
-                      >
-                        Export My Health Data
-                      </Button>
-                    </div>
+                    {/* Today's Log Section */}
+                    {todayLog ? (
+                      <div className="mt-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Calendar className="h-5 w-5 text-brandOrange" />
+                          <h3 className="text-lg font-semibold">Today's Log</h3>
+                          <span className="text-sm text-gray-500">
+                            {formatDate(todayLog.date.toString())}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {todayLog.sleep && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-blue-600 mb-2">Sleep</h4>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Quality:</span>
+                                <span>{todayLog.sleep.quality}/10</span>
+                              </div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Duration:</span>
+                                <span>{todayLog.sleep.duration} hours</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.sleep.finalScore}/10</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {todayLog.mood && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-yellow-600 mb-2">Mood</h4>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Happiness:</span>
+                                <span>{todayLog.mood.happiness}/10</span>
+                              </div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Energy:</span>
+                                <span>{todayLog.mood.energy}/10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.mood.finalScore}/10</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {todayLog.water && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-green-600 mb-2">Water</h4>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.water.finalScore}/10</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {todayLog.nutrition && (
+                            <div className="bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-red-600 mb-2">Nutrition</h4>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Protein:</span>
+                                <span>{todayLog.nutrition.protein}/10</span>
+                              </div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-gray-600">Calories:</span>
+                                <span>{todayLog.nutrition.calories} kcal</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Score:</span>
+                                <span className="font-bold">{todayLog.nutrition.finalScore}/10</span>
+                              </div>
+                            </div>
+                            )}
+                            </div>
+                            {/* @ts-expect-error: no need here */}
+                            {(todayLog.sleep?.dailyRecommndations?.length > 0 || 
+                            // @ts-expect-error: no need here
+                              todayLog.mood?.dailyRecommndations?.length > 0 || 
+                              // @ts-expect-error: no need here
+                              todayLog.water?.dailyRecommndations?.length > 0 || 
+                              // @ts-expect-error: no need here
+                              todayLog.nutrition?.dailyRecommndations?.length > 0) && (
+                                <div className="mt-4 bg-white rounded-lg p-4 shadow-sm border">
+                                  <h4 className="font-medium text-brandOrange mb-2">Today's Recommendations</h4>
+                                  <ul className="space-y-1">
+                                    {todayLog.sleep?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`sleep-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-blue-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                    {todayLog.mood?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`mood-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-yellow-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                    {todayLog.water?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`water-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-green-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                    {todayLog.nutrition?.dailyRecommndations?.map((rec, idx) => (
+                                      <li key={`nutrition-${idx}`} className="text-sm flex gap-2">
+                                        <span className="text-red-500">•</span>
+                                        <span>{rec}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                          </div>
+                        ) : (
+                          <div className="mt-6 bg-white rounded-lg p-6 shadow-sm border text-center">
+                            <h3 className="text-lg font-semibold mb-2">No Log For Today</h3>
+                            <p className="text-gray-600 mb-4">
+                              You haven't created a health log entry for today yet.
+                            </p>
+                            <Button 
+                              className="bg-brandOrange hover:bg-brandOrange/90"
+                              onClick={() => router.push('/log')}
+                            >
+                              Create Today's Log
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                     
-                    <div>
-                      <Button 
-                        variant="outline" 
-                        className="w-full text-red-500 border-red-500 hover:bg-red-50"
-                        onClick={handleDeleteAccount}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Account
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Account Settings</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Button 
+                            variant="default" 
+                            className="w-full bg-brandOrange hover:bg-brandOrange/90"
+                            onClick={() => router.push('/goal')}
+                          >
+                            Change Health Goal
+                          </Button>
+                        </div>
+                        
+                        <div>
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={handleExportData}
+                          >
+                            Export My Health Data
+                          </Button>
+                        </div>
+                        
+                        <div>
+                          <Button 
+                            variant="outline" 
+                            className="w-full text-red-500 border-red-500 hover:bg-red-50"
+                            onClick={handleDeleteAccount}
+                            disabled={loading}
+                          >
+                            {loading ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 mr-2" />
+                            )}
+                            Delete Account
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-};
-
-export default UserProfile;
+      );
+    };
+    
+    export default UserProfile;
