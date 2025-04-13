@@ -225,7 +225,7 @@ const Dashboard = () => {
               </CardContent>
               <CardFooter className="pt-0 bg-white">
                 <Button 
-                  onClick={() => router.push('/log')} 
+                  onClick={() => router.push('/')} 
                   variant="default" 
                   className="bg-orange-500 hover:bg-orange-600 text-white w-full"
                 >
@@ -484,7 +484,7 @@ const Dashboard = () => {
                     <p className="text-gray-700">No health data yet.</p>
                     <p className="text-sm text-gray-600 mb-4">Log your daily activities to get AI insights.</p>
                     <Button 
-                      onClick={() => router.push('/log')} 
+                      onClick={() => router.push('/')} 
                       variant="default" 
                       className="bg-orange-500 hover:bg-orange-600 text-white"
                     >

@@ -45,7 +45,7 @@ const DailyProgressContainer = () => {
 
   const handleLogEntry = (type: string) => {
     // Redirect to the appropriate form based on the type
-    router.push(`/log`);
+    router.push(`/`);
   };
 
   if (loading) {
