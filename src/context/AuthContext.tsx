@@ -76,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Logout function
   const logout = async () => {
     try {
-      await fetch('http://localhost:3001/logout', {
+      await fetch('https://healthbackend-kd4p.onrender.com/logout', {
         method: 'POST',
         credentials: 'include',
       });

@@ -38,6 +38,12 @@ export default function SignUp() {
         const response = await axios.post(
             'https://healthbackend-kd4p.onrender.com/signup',
             { username, password },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              withCredentials: true,
+            }
           );
 
       const { data } = response;
