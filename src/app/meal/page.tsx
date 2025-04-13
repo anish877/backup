@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Badge } from '@/components/ui/badge';
 import { 
   Utensils, 
@@ -9,7 +10,8 @@ import {
   Apple, 
   Coffee, 
   Flame, 
-  Heart
+  Heart,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -35,10 +37,20 @@ import {
 } from 'recharts';
 import { useRouter } from 'next/navigation';
 
+// API client with axios
+const api = axios.create({
+  baseURL: 'http://localhost:3001/api',
+  withCredentials:true
+});
+
+interface NutritionCategory {
+  [key: string]: number;
+}
+
 interface MealAssessment {
   date: string;
   score: number;
-  categories: {[key: string]: number};
+  categories: NutritionCategory;
   type: string;
   time: string;
   description: string;
@@ -47,35 +59,111 @@ interface MealAssessment {
   recommendations: string[];
 }
 
+// Backend models
+interface NutritionData {
+  id: string;
+  dailyLogId: string;
+  finalScore: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  vitamins: number;
+  calories: number;
+  dailyRecommndations: string[];
+}
+
+interface DailyLog {
+  id: string;
+  userId: string;
+  date: string;
+  nutrition: NutritionData | null;
+}
+
 const NutritionAnalysisDetails = () => {
   const navigate = useRouter();
   const [mealHistory, setMealHistory] = useState<MealAssessment[]>([]);
   const [selectedMeal, setSelectedMeal] = useState<MealAssessment | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dailyCalorieGoal, setDailyCalorieGoal] = useState(2000);
-  const [dailyProteinGoal, setDailyProteinGoal] = useState(120);
+  const [error, setError] = useState<string | null>(null);
+  const [dailyCalorieGoal] = useState(2000);
+  const [dailyProteinGoal] = useState(120);
 
   useEffect(() => {
-    const loadHistory = () => {
-      try {
-        const historyData = localStorage.getItem('mealTrackingHistory');
-        if (historyData) {
-          const parsedData = JSON.parse(historyData) as MealAssessment[];
-          setMealHistory(parsedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-          
-          if (parsedData.length > 0) {
-            setSelectedMeal(parsedData[0]);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading meal history:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadHistory();
+    fetchNutritionData();
   }, []);
+
+  const fetchNutritionData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch nutrition logs from the backend
+      const response = await api.get('/nutrition/logs');
+      const dailyLogs: DailyLog[] = response.data;
+      
+      // Transform the data to match the MealAssessment format
+      const transformedData: MealAssessment[] = dailyLogs
+        .filter(log => log.nutrition) // Only include logs with nutrition data
+        .map(log => {
+          const nutrition = log.nutrition!;
+          return {
+            date: log.date,
+            score: nutrition.finalScore,
+            categories: {
+              Protein: nutrition.protein,
+              Carbs: nutrition.carbs,
+              Fats: nutrition.fats,
+              Vitamins: nutrition.vitamins,
+              Hydration: 70 // Default value since it's not in the backend model
+            },
+            type: "Meal", // Default value, could be enhanced with additional data
+            time: new Date(log.date).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            description: "Daily nutrition log", // Default value
+            calories: nutrition.calories,
+            analysis: "Nutritional analysis based on your daily intake.",
+            recommendations: nutrition.dailyRecommndations || []
+          };
+        });
+      
+      setMealHistory(transformedData.sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      ));
+      
+      if (transformedData.length > 0) {
+        setSelectedMeal(transformedData[0]);
+      }
+    } catch (err) {
+      console.error("Error fetching nutrition data:", err);
+      setError("Failed to load nutrition data. Please try again later.");
+      // Fallback to local storage data if available
+      tryLoadFromLocalStorage();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback to local storage if API call fails
+  const tryLoadFromLocalStorage = () => {
+    try {
+      const historyData = localStorage.getItem('mealTrackingHistory');
+      if (historyData) {
+        const parsedData = JSON.parse(historyData) as MealAssessment[];
+        setMealHistory(parsedData.sort((a, b) => 
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        ));
+        
+        if (parsedData.length > 0) {
+          setSelectedMeal(parsedData[0]);
+        }
+        
+      }
+    } catch (error) {
+      console.error("Error loading from local storage:", error);
+    }
+  };
 
   const getNutritionIcon = (score: number) => {
     if (score >= 80) return <Heart className="w-5 h-5 text-orange-500" />;
@@ -116,18 +204,8 @@ const NutritionAnalysisDetails = () => {
     return "Needs improvement";
   };
 
-  const calculateDailyCalories = (date: string): number => {
-    const dayMeals = mealHistory.filter(meal => {
-      const mealDate = new Date(meal.date);
-      const compareDate = new Date(date);
-      return mealDate.toDateString() === compareDate.toDateString();
-    });
-    
-    return dayMeals.reduce((sum, meal) => sum + meal.calories, 0);
-  };
-
   const prepareTrendData = () => {
-    const dailyData: { [key: string]: { date: string, score: number, calories: number, categories: {[key: string]: number} } } = {};
+    const dailyData: { [key: string]: { date: string, score: number, calories: number, categories: NutritionCategory } } = {};
     
     mealHistory.forEach(meal => {
       const date = new Date(meal.date);
@@ -193,6 +271,15 @@ const NutritionAnalysisDetails = () => {
     });
     
     return grouped;
+  };
+
+  const fetchNutritionStats = async (days = 7) => {
+    try {
+      const response = await api.get(`/nutrition/stats?days=${days}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
   };
 
   return (

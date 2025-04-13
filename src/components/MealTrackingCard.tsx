@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { nutritionApi } from '@/services/api';
 
 // Initialize Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
@@ -40,6 +41,7 @@ const MealTrackingCard = () => {
     "Include lean protein sources at every meal for muscle maintenance"
   ]);
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [lastAssessmentDate, setLastAssessmentDate] = useState("Today");
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [nutritionCategories, setNutritionCategories] = useState<{[key: string]: number}>({
@@ -64,6 +66,116 @@ const MealTrackingCard = () => {
   }>>([]);
   const [dailyCalories, setDailyCalories] = useState(1850);
   const [scoreHistory, setScoreHistory] = useState<number[]>([72]);
+
+  // Fetch initial data on component mount
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setIsLoadingData(true);
+      try {
+        // Fetch nutrition logs
+        const logs = await nutritionApi.getNutritionLogs();
+        
+        if (logs && logs.length > 0) {
+          // Process logs to update UI state
+          const latestLog = logs[0]; // Assuming logs are ordered by date desc
+          
+          // Update nutrition score if available
+          if (latestLog.nutrition && latestLog.nutrition.finalScore) {
+            setNutritionScore(latestLog.nutrition.finalScore);
+          }
+          
+          // Update calorie intake if available
+          if (latestLog.nutrition && latestLog.nutrition.calories) {
+            setCalorieIntake(latestLog.nutrition.calories);
+            setDailyCalories(latestLog.nutrition.calories);
+          }
+          
+          // Update nutrition categories if available
+          if (latestLog.nutrition) {
+            const categories: {[key: string]: number} = {
+              "Protein": latestLog.nutrition.protein || 65,
+              "Carbs": latestLog.nutrition.carbs || 78,
+              "Fats": latestLog.nutrition.fats || 70,
+              "Vitamins": latestLog.nutrition.vitamins || 75,
+              "Hydration": 60 // Default since it's not in the backend model
+            };
+            setNutritionCategories(categories);
+          }
+          
+          // Update recommendations if available
+          if (latestLog.nutrition && latestLog.nutrition.dailyRecommndations) {
+            // Handle typo in the backend field name (dailyRecommndations)
+            try {
+              const recs = JSON.parse(latestLog.nutrition.dailyRecommndations);
+              if (Array.isArray(recs)) {
+                setRecommendations(recs);
+              }
+            } catch (e) {
+              // If parsing fails, use the string as a single recommendation
+              setRecommendations([latestLog.nutrition.dailyRecommndations]);
+            }
+          }
+          
+          // Update last assessment date
+          if (latestLog.date) {
+            const logDate = new Date(latestLog.date);
+            const today = new Date();
+            
+            if (logDate.toDateString() === today.toDateString()) {
+              setLastAssessmentDate("Today");
+            } else {
+              setLastAssessmentDate(logDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              }));
+            }
+          }
+          
+          // Format meal history from logs
+          const formattedHistory = logs.map((log: { id: any; date: string | number | Date; mealType: any; mealTime: any; mealDescription: any; nutrition: { finalScore: any; calories: any; protein: any; carbs: any; fats: any; vitamins: any; }; }) => {
+            return {
+              id: log.id,
+              date: new Date(log.date).toLocaleDateString('en-US', { 
+                month: 'long', 
+                day: 'numeric',
+                year: 'numeric'
+              }),
+              type: log.mealType || "Meal",
+              time: log.mealTime || "Unknown",
+              description: log.mealDescription || "No description available",
+              score: log.nutrition?.finalScore || 70,
+              calories: log.nutrition?.calories || 500,
+              analysis: "Nutritional analysis not available",
+              categories: {
+                "Protein": log.nutrition?.protein || 65,
+                "Carbs": log.nutrition?.carbs || 70,
+                "Fats": log.nutrition?.fats || 65,
+                "Vitamins": log.nutrition?.vitamins || 60,
+                "Hydration": 55
+              }
+            };
+          });
+          
+          setMealHistory(formattedHistory);
+          
+          // Update score history for trends
+          setScoreHistory(formattedHistory.map((meal: { score: any; }) => meal.score));
+        }
+        
+        // Fetch nutrition stats
+        const stats = await nutritionApi.getNutritionStats();
+        // Use stats data if needed for charts or additional displays
+        
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        // Handle error state if needed
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    
+    fetchInitialData();
+  }, []);
 
   // Prepare data for pie chart
   const pieData = [
@@ -176,10 +288,12 @@ OVERALL_SCORE: [score]`;
       }
       
       // Set recommendations
+      let mealRecommendations: string[] = [];
       if (recommendationsMatch && recommendationsMatch[1]) {
         const recLines = recommendationsMatch[1].trim().split('\n').filter(line => line.trim() !== '');
         if (recLines.length >= 3) {
-          setRecommendations(recLines.slice(0, 3));
+          mealRecommendations = recLines.slice(0, 3);
+          setRecommendations(mealRecommendations);
         }
       }
       
@@ -235,6 +349,21 @@ OVERALL_SCORE: [score]`;
       // Update score history
       setScoreHistory(prev => [...prev, overallScore]);
       
+      // Submit data to backend API
+      await nutritionApi.addMeal({
+        mealType,
+        mealTime,
+        mealDescription,
+        score: overallScore,
+        calories: mealCalories,
+        analysis: mealAnalysis,
+        recommendations: mealRecommendations,
+        protein: categoryScores["Protein"],
+        carbs: categoryScores["Carbs"],
+        fats: categoryScores["Fats"],
+        vitamins: categoryScores["Vitamins"]
+      });
+      
       // Add to meal history
       const newMeal = {
         id: Date.now().toString(),
@@ -249,23 +378,6 @@ OVERALL_SCORE: [score]`;
       };
       
       setMealHistory(prev => [...prev, newMeal]);
-      
-      // Store in localStorage for details page
-      const newMealData = {
-        date: new Date().toISOString(),
-        score: overallScore,
-        categories: categoryScores,
-        type: mealType,
-        time: mealTime,
-        description: mealDescription,
-        calories: mealCalories,
-        analysis: mealAnalysis,
-        recommendations: recommendations
-      };
-      
-      // Get existing data or initialize empty array
-      const existingData = JSON.parse(localStorage.getItem('mealTrackingHistory') || '[]');
-      localStorage.setItem('mealTrackingHistory', JSON.stringify([...existingData, newMealData]));
       
       // Set last assessment date
       setLastAssessmentDate("Just now");
@@ -299,21 +411,24 @@ OVERALL_SCORE: [score]`;
       setDailyCalories(prev => prev + 550);
       setCalorieIntake(prev => prev + 550);
       
-      // Still store in localStorage
-      const defaultMealData = {
-        date: new Date().toISOString(),
-        score: 70,
-        categories: defaultMeal.categories,
-        type: mealType,
-        time: mealTime,
-        description: mealDescription,
-        calories: 550,
-        analysis: defaultMeal.analysis,
-        recommendations: recommendations
-      };
-      
-      const existingData = JSON.parse(localStorage.getItem('mealTrackingHistory') || '[]');
-      localStorage.setItem('mealTrackingHistory', JSON.stringify([...existingData, defaultMealData]));
+      // Still try to submit to the backend
+      try {
+        await nutritionApi.addMeal({
+          mealType,
+          mealTime,
+          mealDescription,
+          score: 70,
+          calories: 550,
+          analysis: defaultMeal.analysis,
+          recommendations: JSON.stringify(recommendations),
+          protein: 65,
+          carbs: 70,
+          fats: 65,
+          vitamins: 60
+        });
+      } catch (submitError) {
+        console.error("Failed to submit meal data to backend:", submitError);
+      }
     } finally {
       setIsGeneratingAnalysis(false);
     }
