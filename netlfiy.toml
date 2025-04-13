@@ -1,0 +1,8 @@
+[build.environment]
+  NODE_VERSION = "18" # or whatever version you're using
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+  command = "npm install lightningcss-linux-x64-gnu && npm run build"
+  publish = ".next"
