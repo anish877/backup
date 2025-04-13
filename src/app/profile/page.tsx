@@ -139,7 +139,7 @@ const UserProfile = () => {
 
   useEffect(() => {
     if (!isOnboarded && !loading) {
-      router.push('/profile');
+      router.push('/goal');
     }
   }, [isOnboarded, router, loading]);
 
