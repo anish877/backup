@@ -1,11 +1,10 @@
 'use client'
 import React, { useEffect } from 'react';
-import NavBar from '@/components/NavBar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, parseISO, subDays } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Calendar, Check, Clock, Droplet, Dumbbell, Heart } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { Calendar, Check, Clock, Droplet, Dumbbell, Heart, Brain, AlertCircle, Coffee, Moon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useHealthStore } from '@/store/healthStore';
 
@@ -24,8 +23,8 @@ const Dashboard = () => {
   const latestLog = dailyLogs.length > 0 ? dailyLogs[dailyLogs.length - 1] : null;
   const latestFeedback = feedback.length > 0 ? feedback[feedback.length - 1] : null;
 
-  // Prepare data for mood chart
-  const moodData = React.useMemo(() => {
+  // Prepare data for health metrics chart
+  const healthMetricsData = React.useMemo(() => {
     // Take the last 7 logs or less if there aren't enough
     const last7Logs = dailyLogs.slice(-7);
     
@@ -41,10 +40,7 @@ const Dashboard = () => {
             mood: 0,
             sleepHours: 0,
             waterConsumed: 0,
-            meals: [],
-            exercise: '',
-            exerciseDuration: 0,
-            symptoms: [],
+            nutrition: 0,
             stressLevel: 0
           });
         }
@@ -55,42 +51,112 @@ const Dashboard = () => {
       date: log.date ? format(parseISO(log.date), 'MMM dd') : '',
       mood: log.mood || 0,
       sleep: log.sleepHours || 0,
+      water: log.waterConsumed || 0,
+      nutrition: log.nutrition || 0,
       stress: log.stressLevel || 0
     }));
   }, [dailyLogs]);
 
-  // Compute adherence stats
-  const adherenceStats = React.useMemo(() => {
-    if (!healthPlan || dailyLogs.length === 0) return { water: 0, sleep: 0, exercise: 0 };
+  // Prepare data for health breakdown pie chart
+  const healthBreakdownData = React.useMemo(() => {
+    if (!latestLog) return [];
     
-    let waterAdherenceSum = 0;
-    let sleepAdherenceSum = 0;
-    let exerciseAdherenceSum = 0;
+    return [
+      { name: 'Nutrition', value: latestLog.nutrition || 0, color: '#FF5500' },
+      { name: 'Sleep', value: latestLog.sleepHours ? (latestLog.sleepHours / 10) * 100 : 0, color: '#9333EA' },
+      { name: 'Mood', value: latestLog.mood || 0, color: '#22C55E' },
+      { name: 'Water', value: latestLog.waterConsumed ? (latestLog.waterConsumed / 8) * 100 : 0, color: '#3B82F6' },
+      { name: 'Activity', value: latestLog.exerciseDuration ? (latestLog.exerciseDuration / 60) * 100 : 0, color: '#F59E0B' }
+    ];
+  }, [latestLog]);
+
+  // Compute health score
+  const healthScore = React.useMemo(() => {
+    if (!latestLog) return 0;
     
-    dailyLogs.forEach(log => {
-      // Water adherence
-      const targetWater = parseFloat(healthPlan.waterIntake);
-      waterAdherenceSum += Math.min(log.waterConsumed / targetWater, 1);
-      
-      // Sleep adherence (assuming the format is like "7-8 hours")
-      const sleepRange = healthPlan.sleepHours.split('-');
-      const minSleep = parseFloat(sleepRange[0]);
-      const maxSleep = parseFloat(sleepRange[1]);
-      const optimalSleep = (minSleep + maxSleep) / 2;
-      const sleepDeviation = Math.abs(log.sleepHours - optimalSleep) / optimalSleep;
-      sleepAdherenceSum += Math.max(0, 1 - sleepDeviation);
-      
-      // Exercise adherence - simplified
-      exerciseAdherenceSum += log.exerciseDuration > 20 ? 1 : log.exerciseDuration / 20;
-    });
+    // Calculate weighted average of all health metrics
+    const nutritionWeight = 0.3;
+    const sleepWeight = 0.25;
+    const moodWeight = 0.15;
+    const waterWeight = 0.15;
+    const activityWeight = 0.15;
     
-    const count = dailyLogs.length;
-    return {
-      water: Math.round((waterAdherenceSum / count) * 100),
-      sleep: Math.round((sleepAdherenceSum / count) * 100),
-      exercise: Math.round((exerciseAdherenceSum / count) * 100)
-    };
-  }, [healthPlan, dailyLogs]);
+    const normalizedSleep = latestLog.sleepHours ? Math.min((latestLog.sleepHours / 8) * 100, 100) : 0;
+    const normalizedWater = latestLog.waterConsumed ? Math.min((latestLog.waterConsumed / 8) * 100, 100) : 0;
+    const normalizedActivity = latestLog.exerciseDuration ? Math.min((latestLog.exerciseDuration / 30) * 100, 100) : 0;
+    
+    return Math.round(
+      (latestLog.nutrition || 0) * nutritionWeight +
+      normalizedSleep * sleepWeight +
+      (latestLog.mood || 0) * moodWeight +
+      normalizedWater * waterWeight +
+      normalizedActivity * activityWeight
+    );
+  }, [latestLog]);
+
+  // Generate insights based on the logs
+  const generateInsights = () => {
+    if (dailyLogs.length < 2) return [];
+    
+    const insights = [];
+    const recentLogs = dailyLogs.slice(-7);
+    
+    // Check sleep patterns
+    const avgSleep = recentLogs.reduce((sum, log) => sum + (log.sleepHours || 0), 0) / recentLogs.length;
+    if (avgSleep < 7) {
+      insights.push("You're averaging less than 7 hours of sleep. Aim for 7-9 hours for optimal health.");
+    }
+    
+    // Check water intake
+    const avgWater = recentLogs.reduce((sum, log) => sum + (log.waterConsumed || 0), 0) / recentLogs.length;
+    if (avgWater < 6) {
+      insights.push("Your water intake is below recommended levels. Try to increase to at least 8 glasses daily.");
+    }
+    
+    // Check mood trends
+    const moodScores = recentLogs.map(log => log.mood || 0);
+    const moodTrend = moodScores[moodScores.length - 1] - moodScores[0];
+    if (moodTrend < -10) {
+      insights.push("Your mood has been declining. Consider activities that boost your mental wellbeing.");
+    }
+    
+    // Check exercise consistency
+    const exerciseDays = recentLogs.filter(log => (log.exerciseDuration || 0) > 15).length;
+    if (exerciseDays < 3) {
+      insights.push("You've exercised fewer than 3 days recently. Aim for at least 150 minutes per week.");
+    }
+    
+    return insights.length > 0 ? insights : ["Your health metrics look balanced. Keep up the good work!"];
+  };
+
+  // Get recommendations based on health metrics
+  const getRecommendations = () => {
+    if (!latestLog) return [];
+    
+    const recommendations = [];
+    
+    if ((latestLog.nutrition || 0) < 70) {
+      recommendations.push("Include more whole foods and reduce processed items in your diet.");
+    }
+    
+    if ((latestLog.sleepHours || 0) < 7) {
+      recommendations.push("Work on improving your sleep hygiene for better rest quality.");
+    }
+    
+    if ((latestLog.mood || 0) < 70) {
+      recommendations.push("Try mindfulness practices to improve your mood and mental wellbeing.");
+    }
+    
+    if ((latestLog.waterConsumed || 0) < 6) {
+      recommendations.push("Set reminders to drink water throughout the day to stay hydrated.");
+    }
+    
+    if ((latestLog.exerciseDuration || 0) < 20) {
+      recommendations.push("Even short exercise sessions can help - aim for at least 20 minutes daily.");
+    }
+    
+    return recommendations.length > 0 ? recommendations : ["Continue with your current health plan for sustained results."];
+  };
 
   if (!isOnboarded) {
     return null; // This will prevent flash before redirect
@@ -98,10 +164,10 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      
       <div className="container mx-auto px-4 py-6">
-        {/* Health Plan Summary */}
+        {/* Health Overview Section */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+          {/* Health Plan Summary Card */}
           <div className="md:col-span-3">
             <Card className="border border-gray-100 shadow-sm">
               <CardHeader className="pb-2 bg-white">
@@ -169,51 +235,75 @@ const Dashboard = () => {
             </Card>
           </div>
           
+          {/* Health Score Card */}
           <div className="md:col-span-2">
             <Card className="h-full border border-gray-100 shadow-sm">
               <CardHeader className="bg-white">
-                <CardTitle className="text-lg font-semibold text-gray-900">Adherence to Plan</CardTitle>
-                <CardDescription className="text-gray-600">How well you're following your health plan</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900">Your Health Score</CardTitle>
+                <CardDescription className="text-gray-600">
+                  Overall assessment based on your recent logs
+                </CardDescription>
               </CardHeader>
-              <CardContent className="bg-white">
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-800">Water Intake</span>
-                      <span className="text-gray-800">{adherenceStats.water}%</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-orange-400 rounded-full" 
-                        style={{ width: `${adherenceStats.water}%` }}
-                      />
-                    </div>
+              <CardContent className="bg-white flex flex-col items-center justify-center">
+                <div className="relative w-32 h-32 mb-4">
+                  {/* Circular progress indicator */}
+                  <svg className="w-full h-full" viewBox="0 0 100 100">
+                    <circle 
+                      className="text-gray-200" 
+                      strokeWidth="8" 
+                      stroke="currentColor" 
+                      fill="transparent" 
+                      r="40" 
+                      cx="50" 
+                      cy="50" 
+                    />
+                    <circle 
+                      className="text-orange-500" 
+                      strokeWidth="8" 
+                      strokeLinecap="round" 
+                      stroke="currentColor" 
+                      fill="transparent" 
+                      r="40" 
+                      cx="50" 
+                      cy="50" 
+                      strokeDasharray={`${healthScore * 2.51}, 251`} 
+                      strokeDashoffset="0" 
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-3xl font-bold text-gray-900">{healthScore}</span>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-800">Sleep Quality</span>
-                      <span className="text-gray-800">{adherenceStats.sleep}%</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-orange-300 rounded-full" 
-                        style={{ width: `${adherenceStats.sleep}%` }}
-                      />
-                    </div>
+                </div>
+                
+                <div className="text-center mb-4">
+                  <p className="text-sm text-gray-600">
+                    {healthScore >= 80 ? "Excellent" : 
+                     healthScore >= 70 ? "Very Good" :
+                     healthScore >= 60 ? "Good" :
+                     healthScore >= 50 ? "Fair" : "Needs Improvement"}
+                  </p>
+                </div>
+                
+                <div className="w-full grid grid-cols-5 gap-2 mt-2">
+                  <div className="flex flex-col items-center">
+                    <Coffee className="h-5 w-5 text-orange-500 mb-1" />
+                    <span className="text-xs text-gray-600">Nutrition</span>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-800">Exercise</span>
-                      <span className="text-gray-800">{adherenceStats.exercise}%</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-orange-500 rounded-full" 
-                        style={{ width: `${adherenceStats.exercise}%` }}
-                      />
-                    </div>
+                  <div className="flex flex-col items-center">
+                    <Moon className="h-5 w-5 text-purple-600 mb-1" />
+                    <span className="text-xs text-gray-600">Sleep</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Brain className="h-5 w-5 text-green-600 mb-1" />
+                    <span className="text-xs text-gray-600">Mood</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Droplet className="h-5 w-5 text-blue-500 mb-1" />
+                    <span className="text-xs text-gray-600">Water</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Dumbbell className="h-5 w-5 text-yellow-500 mb-1" />
+                    <span className="text-xs text-gray-600">Activity</span>
                   </div>
                 </div>
               </CardContent>
@@ -221,18 +311,19 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Charts and AI Feedback */}
+        {/* Health Trends and Insights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Health Metrics Trends Chart */}
           <div className="md:col-span-2">
             <Card className="border border-gray-100 shadow-sm">
               <CardHeader className="bg-white">
-                <CardTitle className="text-lg font-semibold text-gray-900">Weekly Trends</CardTitle>
-                <CardDescription className="text-gray-600">Your mood and sleep patterns over the past week</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900">Health Metrics Trends</CardTitle>
+                <CardDescription className="text-gray-600">Your key health indicators over the past week</CardDescription>
               </CardHeader>
               <CardContent className="bg-white">
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={moodData}>
+                    <LineChart data={healthMetricsData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
                       <XAxis dataKey="date" stroke="#333" />
                       <YAxis stroke="#333" />
@@ -241,15 +332,27 @@ const Dashboard = () => {
                       <Line 
                         type="monotone" 
                         dataKey="mood" 
-                        stroke="#FF5500" 
+                        stroke="#22C55E" 
                         activeDot={{ r: 8 }} 
                         name="Mood" 
                       />
                       <Line 
                         type="monotone" 
                         dataKey="sleep" 
-                        stroke="#FF9D80" 
+                        stroke="#9333EA" 
                         name="Sleep (hours)" 
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="water" 
+                        stroke="#3B82F6" 
+                        name="Water (glasses)" 
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="nutrition" 
+                        stroke="#FF5500" 
+                        name="Nutrition" 
                       />
                       <Line 
                         type="monotone" 
@@ -260,36 +363,109 @@ const Dashboard = () => {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+                
+                {latestLog && (
+                  <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="flex justify-center mb-1">
+                        <Brain className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div className="text-2xl font-semibold text-gray-900">{latestLog.mood || 0}</div>
+                      <div className="text-xs text-gray-600">Mood Score</div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="flex justify-center mb-1">
+                        <Moon className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div className="text-2xl font-semibold text-gray-900">{latestLog.sleepHours || 0}</div>
+                      <div className="text-xs text-gray-600">Hours Sleep</div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="flex justify-center mb-1">
+                        <Droplet className="h-5 w-5 text-blue-500" />
+                      </div>
+                      <div className="text-2xl font-semibold text-gray-900">{latestLog.waterConsumed || 0}</div>
+                      <div className="text-xs text-gray-600">Glasses Water</div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="flex justify-center mb-1">
+                        <Coffee className="h-5 w-5 text-orange-500" />
+                      </div>
+                      <div className="text-2xl font-semibold text-gray-900">{latestLog.nutrition || 0}</div>
+                      <div className="text-xs text-gray-600">Nutrition Score</div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="flex justify-center mb-1">
+                        <Dumbbell className="h-5 w-5 text-yellow-500" />
+                      </div>
+                      <div className="text-2xl font-semibold text-gray-900">{latestLog.exerciseDuration || 0}</div>
+                      <div className="text-xs text-gray-600">Minutes Exercise</div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
           
-          <div>
+          {/* AI Health Insights Card */}
+          <div className="md:col-span-1">
             <Card className="h-full border border-gray-100 shadow-sm">
               <CardHeader className="bg-white">
-                <CardTitle className="text-lg font-semibold text-gray-900">AI Feedback</CardTitle>
+                <CardTitle className="text-lg font-semibold text-gray-900">AI Health Insights</CardTitle>
                 <CardDescription className="text-gray-600">Personalized analysis of your health data</CardDescription>
               </CardHeader>
               <CardContent className="bg-white">
-                {latestFeedback ? (
+                {dailyLogs.length > 0 ? (
                   <div className="space-y-4">
                     <div>
-                      <p className="font-medium text-gray-900">Adherence</p>
-                      <p className="text-sm text-gray-700">{latestFeedback.adherence}</p>
+                      <p className="font-medium text-gray-900">Health Breakdown</p>
+                      {latestLog && (
+                        <div className="h-40 mt-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={healthBreakdownData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={30}
+                                outerRadius={60}
+                                paddingAngle={5}
+                                dataKey="value"
+                              >
+                                {healthBreakdownData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                formatter={(value) => [`${value}%`, null]}
+                                labelFormatter={(index) => healthBreakdownData[index].name}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
                     </div>
                     
                     <div>
-                      <p className="font-medium text-gray-900">Suggestions</p>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {latestFeedback.suggestions.map((suggestion, i) => (
-                          <li key={i} className="text-sm text-gray-700">{suggestion}</li>
+                      <p className="font-medium text-gray-900">Recent Insights</p>
+                      <ul className="list-disc pl-5 space-y-1 mt-2">
+                        {generateInsights().map((insight, i) => (
+                          <li key={i} className="text-sm text-gray-700">{insight}</li>
                         ))}
                       </ul>
                     </div>
                     
                     <div>
-                      <p className="font-medium text-gray-900">Motivation</p>
-                      <p className="text-sm italic text-gray-700">{latestFeedback.motivation}</p>
+                      <p className="font-medium text-gray-900">Recommendations</p>
+                      <ul className="list-disc pl-5 space-y-1 mt-2">
+                        {getRecommendations().map((recommendation, i) => (
+                          <li key={i} className="text-sm text-gray-700">{recommendation}</li>
+                        ))}
+                      </ul>
                     </div>
                     
                     <div className="pt-2">
@@ -304,23 +480,88 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No feedback yet.</p>
-                    <p className="text-sm text-gray-600">Log your daily activities to get AI insights.</p>
-                    <div className="mt-4">
-                      <Button 
-                        onClick={() => router.push('/log')} 
-                        variant="default" 
-                        className="bg-orange-500 hover:bg-orange-600 text-white"
-                      >
-                        Start Logging
-                      </Button>
-                    </div>
+                    <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+                    <p className="text-gray-700">No health data yet.</p>
+                    <p className="text-sm text-gray-600 mb-4">Log your daily activities to get AI insights.</p>
+                    <Button 
+                      onClick={() => router.push('/log')} 
+                      variant="default" 
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                    >
+                      Start Logging
+                    </Button>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
         </div>
+        
+        {/* Additional Health Analytics */}
+        {dailyLogs.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            {/* Sleep Quality Analysis */}
+            <Card className="border border-gray-100 shadow-sm">
+              <CardHeader className="bg-white">
+                <CardTitle className="text-lg font-semibold text-gray-900">Sleep Quality</CardTitle>
+                <CardDescription className="text-gray-600">Analysis of your sleep patterns</CardDescription>
+              </CardHeader>
+              <CardContent className="bg-white">
+                <div className="h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={healthMetricsData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+                      <XAxis dataKey="date" stroke="#333" />
+                      <YAxis stroke="#333" />
+                      <Tooltip contentStyle={{ backgroundColor: 'white', borderColor: '#e2e8f0' }} />
+                      <Legend />
+                      <Bar dataKey="sleep" name="Sleep Hours" fill="#9333EA" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 bg-purple-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Sleep insight: </span>
+                    {dailyLogs.length >= 3 ? 
+                      `Your average sleep over the past ${Math.min(dailyLogs.length, 7)} days is ${(dailyLogs.slice(-7).reduce((sum, log) => sum + (log.sleepHours || 0), 0) / Math.min(dailyLogs.length, 7)).toFixed(1)} hours.` : 
+                      "Log at least 3 days of sleep data to get personalized insights."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Nutrition & Hydration Analysis */}
+            <Card className="border border-gray-100 shadow-sm">
+              <CardHeader className="bg-white">
+                <CardTitle className="text-lg font-semibold text-gray-900">Nutrition & Hydration</CardTitle>
+                <CardDescription className="text-gray-600">Analysis of your diet and water intake</CardDescription>
+              </CardHeader>
+              <CardContent className="bg-white">
+                <div className="h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={healthMetricsData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+                      <XAxis dataKey="date" stroke="#333" />
+                      <YAxis stroke="#333" />
+                      <Tooltip contentStyle={{ backgroundColor: 'white', borderColor: '#e2e8f0' }} />
+                      <Legend />
+                      <Line type="monotone" dataKey="nutrition" name="Nutrition Score" stroke="#FF5500" />
+                      <Line type="monotone" dataKey="water" name="Water Glasses" stroke="#3B82F6" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 bg-orange-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Nutrition insight: </span>
+                    {dailyLogs.length >= 3 ? 
+                      `Your nutrition scores are ${dailyLogs.slice(-3).every(log => (log.nutrition || 0) > 70) ? 'consistently good' : 'showing room for improvement'}. Focus on ${getRecommendations()[0].toLowerCase()}` : 
+                      "Log at least 3 days of nutrition data to get personalized insights."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

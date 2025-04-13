@@ -46,7 +46,6 @@ const NavBar = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: <Home className="w-5 h-5" /> },
     { path: '/dashboard', label: 'Dashboard', icon: <Activity className="w-5 h-5" /> },
-    { path: '/log', label: 'Daily Log', icon: <Calendar className="w-5 h-5" /> },
     { path: '/chat', label: 'AI Assistant', icon: <MessageCircle className="w-5 h-5" /> },
     { path: '/profile', label: 'Profile', icon: <User className="w-5 h-5" /> },
   ];
