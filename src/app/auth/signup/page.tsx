@@ -36,7 +36,7 @@ export default function SignUp() {
     try {
 
         const response = await axios.post(
-            'http://localhost:3001/signup',
+            process.env.NEXT_PUBLIC_BACKEND + '/signup',
             { username, password },
             {
               headers: {

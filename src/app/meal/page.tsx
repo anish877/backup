@@ -39,7 +39,7 @@ import { useRouter } from 'next/navigation';
 
 // API client with axios
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: process.env.NEXT_PUBLIC_BACKEND + '/api',
   withCredentials:true
 });
 

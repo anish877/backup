@@ -40,7 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const verifyAuth = async () => {
       try {
         // Create a verify-auth endpoint on your backend
-        const response = await axios.get('http://localhost:3001/verify-auth', {
+        const response = await axios.get('https://healthbackend-kd4p.onrender.com/verify-auth', {
             withCredentials: true, // This includes cookies like fetch's `credentials: 'include'`
         });
 
