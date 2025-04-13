@@ -41,7 +41,7 @@ export const nutritionApi = {
     score: number;
     calories: number;
     analysis: string;
-    recommendations: string;
+    recommendations: string[];
     protein: number;
     carbs: number;
     fats: number;
