@@ -31,7 +31,7 @@ export interface UserProfileResponse {
   dailyLogs: DailyLog[];
   stats: UserStats;
 }
-const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'https://healthbackend-kd4p.onrender.com';
+const API_URL = 'https://healthbackend-kd4p.onrender.com';
 
 const formSchema = z.object({
   age: z.coerce.number().min(1, "Age is required"),

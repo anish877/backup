@@ -81,7 +81,7 @@ const SleepAnalysisDetails = () => {
         const startDate = thirtyDaysAgo.toISOString().split('T')[0];
         const endDate = new Date().toISOString().split('T')[0];
         
-        const response = await axios.get(process.env.NEXT_PUBLIC_BACKEND+`/api/sleep`,{withCredentials:true});
+        const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/sleep`,{withCredentials:true});
         
         if (response.data && response.data.sleep) {
           const sleepEntries = response.data.sleep;
@@ -151,7 +151,7 @@ const SleepAnalysisDetails = () => {
   const fetchSleepDetails = async (id: string) => {
     try {
       setLoading(true);
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND}/api/sleep/${id}`);
+      const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/sleep/${id}`);
       
       if (response.data && response.data.sleep) {
         const sleep = response.data.sleep;

@@ -28,7 +28,7 @@ const HealthImprovementChart = () => {
   useEffect(() => {
     const fetchHealthData = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND}/api/health-scores?days=7`,{withCredentials:true});
+        const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/health-scores?days=7`,{withCredentials:true});
         if (!response) {
           throw new Error('Failed to fetch health data');
         }
