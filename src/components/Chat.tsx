@@ -1,8 +1,6 @@
 'use client'
 import React, { useRef, useEffect, useState } from 'react';
-import { Check, Clipboard, User, Send, GitGraphIcon, Paperclip, MessageSquarePlus, X, ChevronRight } from 'lucide-react';
-import Image from 'next/image';
-import gemini from '@/images/zero.png'; 
+import { Check, Clipboard, User, Send, GitGraphIcon, Paperclip, MessageSquarePlus, X, ChevronRight, Brain } from 'lucide-react';
 import useMessageStore from '@/store/messages';
 import { useParams } from 'next/navigation';
 import useTokenStore from '@/store/token';
@@ -133,7 +131,7 @@ const ChatComponent: React.FC = () => {
                 <div className="flex flex-col w-full">
                   <div className="flex items-center mb-1">
                     {message.sender === 'ai' ? (
-                      <Image src={gemini} alt='gemini' className='size-5 rounded-lg'/>
+                      <Brain/>
                     ) : (
                       <User size={16} className="mr-1 text-white" />
                     )}
@@ -170,7 +168,7 @@ const ChatComponent: React.FC = () => {
           <div className="flex mb-4 justify-start">
             <div className="flex max-w-[75%] rounded-lg p-4 bg-white text-gray-800 border border-orange-200 rounded-bl-none shadow-md">
               <div className="flex items-center space-x-2">
-                <Image src={gemini} alt="gemini" className="size-5" />
+                <Brain/>
                 <p className="text-xl font-semibold text-transparent bg-clip-text bg-[linear-gradient(to_right,#f97316_0%,#fdba74_50%,#f97316_100%)] bg-[length:200%_100%] animate-[shimmer_1.5s_infinite_linear]">
                   Zero is Thinking
                 </p>
