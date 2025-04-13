@@ -29,7 +29,7 @@ export default function SignIn() {
           );
 
       const { data } = response;
-
+          console.log(data)
 
       if (response.status === 200) {
         customToast.success('Signed in successfully!');

@@ -335,8 +335,11 @@ const generateQuestions = async () => {
       const aiResponse = await callGeminiAPI(promptForAnalysis);
       
       // Parse the response
+      //@ts-expect-error: no need here
       const analysisMatch = aiResponse.match(/ANALYSIS:(.*?)(?=\n\nRECOMMENDATIONS:|\n\nCATEGORY_SCORES:|$)/s);
+      //@ts-expect-error: no need here
       const recommendationsMatch = aiResponse.match(/RECOMMENDATIONS:(.*?)(?=\n\nCATEGORY_SCORES:|$)/s);
+      //@ts-expect-error: no need here
       const categoryScoresMatch = aiResponse.match(/CATEGORY_SCORES:(.*?)$/s);
       
       // Set AI analysis

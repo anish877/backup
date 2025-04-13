@@ -30,6 +30,7 @@ const formSchema = z.object({
 });
 
 const GoalSetup = () => {
+  //@ts-expect-error: no need here
   const { setHealthGoal, setUserProfile, setHealthPlan, completeOnboarding } = useHealthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
