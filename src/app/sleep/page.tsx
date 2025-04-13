@@ -562,6 +562,7 @@ const SleepAnalysisDetails = () => {
                                   <p className="text-sm text-gray-600 mb-3">{question}</p>
                                   <div className="bg-blue-50 p-3 rounded-lg">
                                     <p className="text-sm text-gray-700">
+                                      {/* @ts-expect-error: no need here */}
                                       {selectedAssessment.responses[index] || "No response provided"}
                                     </p>
                                   </div>

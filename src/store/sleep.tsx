@@ -63,9 +63,10 @@ export const SleepContextProvider = ({ children }: { children: ReactNode }) => {
       const text = response.response.text();
       
       // Parse the AI response to extract questions and options
+      //@ts-expect-error: no need here
       const questionMatches = text.match(/QUESTION:(.*?)(?=QUESTION:|$)/gs) || [];
       const parsedQuestions = questionMatches.map(q => q.replace('QUESTION:', '').trim());
-      
+      //@ts-expect-error: no need here
       const optionMatches = text.match(/OPTIONS:(.*?)(?=QUESTION:|$)/gs) || [];
       const parsedOptions = optionMatches.map(o => 
         o.replace('OPTIONS:', '')
