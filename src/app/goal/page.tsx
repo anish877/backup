@@ -13,6 +13,10 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useHealthStore } from '@/store/healthStore';
 import { customToast } from '@/components/CustomToast';
+import axios from 'axios';
+
+// API base URL
+const API_BASE_URL = 'https://healthbackend-kd4p.onrender.com';
 
 const formSchema = z.object({
   goal: z.enum(['Lose weight', 'Improve sleep', 'Gain muscle', 'Manage stress'], {
@@ -34,6 +38,7 @@ const GoalSetup = () => {
   const { setHealthGoal, setUserProfile, setHealthPlan, completeOnboarding } = useHealthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,94 +54,84 @@ const GoalSetup = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
+    setError(null);
     
-    // Update health goal in context
-    setHealthGoal(values.goal);
-    
-    // Update user profile in context
-    setUserProfile({
-      age: Number(values.age),
-      weight: Number(values.weight),
-      gender: values.gender,
-      activityLevel: values.activityLevel,
-      symptoms: values.symptoms ? values.symptoms.split(',').map(s => s.trim()) : [],
-    });
-
-    // Mock AI response for now
-    // In a real app, this would be a call to an API that uses OpenAI
-    setTimeout(() => {
-      const mockHealthPlan = getMockHealthPlan(values.goal);
-      setHealthPlan(mockHealthPlan);
+    try {
+      // Get user token from localStorage (assuming you store it there after login)
+      const token = localStorage.getItem('userToken');
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+      
+      // Call backend API to set health goal
+      
+const response = await axios.post(
+  `${API_BASE_URL}/health-goal`,
+  values, // This is the body
+  {
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`, // 👈 Optional if using cookie instead
+    },
+    withCredentials: true, // 👈 This allows sending cookies (like jwt stored in cookies)
+  }
+);
+      
+      if (response.status !== 200) {
+        throw new Error('Failed to set health goal');
+      }
+      
+      const {data} = response;
+      
+      // Update health goal in context
+      setHealthGoal(values.goal);
+      
+      // Update user profile in context
+      setUserProfile({
+        age: Number(values.age),
+        weight: Number(values.weight),
+        gender: values.gender,
+        activityLevel: values.activityLevel,
+        symptoms: values.symptoms ? values.symptoms.split(',').map(s => s.trim()) : [],
+      });
+      
+      // Set health plan from API response
+      setHealthPlan(data.healthPlan);
       completeOnboarding();
       
       customToast.success("Your personalized health plan has been generated.");
-      
-      setIsLoading(false);
       router.push('/dashboard');
-    }, 1500);
-  };
-
-  // Mock function to generate health plan based on goal
-  const getMockHealthPlan = (goal: string) => {
-    switch (goal) {
-      case 'Lose weight':
-        return {
-          waterIntake: '3.2L',
-          sleepHours: '7-8 hours',
-          exercise: '45 min cardio + 15 min strength training',
-          meals: ['High-protein breakfast', 'Low-carb lunch', 'Small portion dinner'],
-          tips: ['Avoid sugary drinks', 'Eat slowly', 'Take 10,000 steps daily']
-        };
-      case 'Improve sleep':
-        return {
-          waterIntake: '2.5L',
-          sleepHours: '8-9 hours',
-          exercise: '30 min yoga + 20 min walk',
-          meals: ['Light dinner 3 hours before bed', 'Caffeine-free after 2pm'],
-          tips: ['No screens 1 hour before bed', 'Keep bedroom cool and dark', 'Consistent sleep schedule']
-        };
-      case 'Gain muscle':
-        return {
-          waterIntake: '4L',
-          sleepHours: '8 hours',
-          exercise: '45 min weight training + 10 min core',
-          meals: ['Protein-rich breakfast', 'Post-workout protein shake', 'Carb-rich dinner'],
-          tips: ['Focus on progressive overload', 'Rest 48 hours between muscle groups', 'Track protein intake']
-        };
-      case 'Manage stress':
-        return {
-          waterIntake: '3L',
-          sleepHours: '7-8 hours',
-          exercise: '20 min meditation + 30 min walk',
-          meals: ['Balanced meals rich in Omega-3', 'Avoid excessive caffeine'],
-          tips: ['Practice deep breathing', 'Take regular breaks', 'Journal daily']
-        };
-      default:
-        return {
-          waterIntake: '2.5L',
-          sleepHours: '7-8 hours',
-          exercise: '30 min moderate activity',
-          meals: ['Balanced meals', 'Regular eating schedule'],
-          tips: ['Stay hydrated', 'Get enough sleep']
-        };
+    } catch (err) {
+      console.error('Error setting health goal:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      customToast.error(err instanceof Error ? err.message : 'Failed to create health plan');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <div className="w-full py-10 bg-gradient-to-r from-orange-50 to-orange-100 border-b border-orange-200 shadow-sm">
-  <div className="container mx-auto px-4">
-    <h1 className="text-3xl md:text-4xl font-bold text-center text-orange-600 mb-2">
-      Set Your Health Goal
-    </h1>
-    <div className="w-24 h-1 bg-orange-400 mx-auto mb-4 rounded-full"></div>
-    <p className="text-center text-gray-700 max-w-2xl mx-auto text-lg">
-      Tell us about your health goals and we'll create a personalized plan tailored just for you
-    </p>
-  </div>
-</div>
+        <div className="container mx-auto px-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-orange-600 mb-2">
+            Set Your Health Goal
+          </h1>
+          <div className="w-24 h-1 bg-orange-400 mx-auto mb-4 rounded-full"></div>
+          <p className="text-center text-gray-700 max-w-2xl mx-auto text-lg">
+            Tell us about your health goals and we'll create a personalized plan tailored just for you
+          </p>
+        </div>
+      </div>
   
       <div className="container mx-auto px-4 py-8">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-orange-200">
