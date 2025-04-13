@@ -39,7 +39,7 @@ import { useRouter } from 'next/navigation';
 
 // API client with axios
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND + '/api',
+  baseURL: 'https://healthbackend-kd4p.onrender.com/api',
   withCredentials:true
 });
 
