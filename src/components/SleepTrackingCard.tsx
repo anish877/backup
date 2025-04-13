@@ -150,65 +150,71 @@ const SleepTrackingCard = () => {
     }
   };
 
-  // Generate specific sleep questions about last night's sleep
-  const generateQuestions = async () => {
-    setIsGeneratingQuestions(true);
-    
-    try {
-      const prompt = `Generate 5 detailed questions specifically about the user's PREVIOUS NIGHT's sleep (not their general sleep habits). Each question should have 4-5 detailed multiple choice options that give context and help users accurately assess their recent sleep quality.
+  // Modified parsing logic in generateQuestions function to correctly handle options
 
-      Format your response exactly like this example:
+const generateQuestions = async () => {
+  setIsGeneratingQuestions(true);
+  
+  try {
+    const prompt = `Generate 5 detailed questions specifically about the user's PREVIOUS NIGHT's sleep (not their general sleep habits). Each question should have 4-5 detailed multiple choice options that give context and help users accurately assess their recent sleep quality.
+
+    Format your response exactly like this example:
+    
+    QUESTION: How many hours did you sleep last night?
+    Less than 5 hours (went to bed very late or woke up too early), 5-6 hours (somewhat insufficient), 7-8 hours (recommended amount), More than 8 hours (extended sleep period)
+    
+    QUESTION: How long did it take you to fall asleep last night?
+    Under 5 minutes (fell asleep almost immediately), 5-15 minutes (dozed off quickly), 15-30 minutes (some difficulty), 30-60 minutes (significant delay), Over 60 minutes (severe difficulty falling asleep)
+    
+    QUESTION: How would you rate the quality of your sleep last night?
+    Excellent (deep, uninterrupted sleep), Good (mostly restful with minimal disturbances), Average (somewhat restful with occasional waking), Poor (restless with frequent waking), Very Poor (barely slept or extremely fragmented)
+    
+    Just provide the questions and detailed options in exactly this format - no introductions or explanations. Make each question specifically about LAST NIGHT's sleep (not general sleep patterns), and make the options detailed with contextual descriptions.`;
+    
+    const aiResponse = await callGeminiAPI(prompt);
+    
+    // Parse the AI response to extract questions and options
+    const sections = aiResponse.split('QUESTION:').filter(section => section.trim() !== '');
+    
+    const parsedQuestions: string[] = [];
+    const parsedOptions: string[][] = [];
+    
+    sections.forEach(section => {
+      // Split each section into question and options
+      const lines = section.trim().split('\n');
       
-      QUESTION: How many hours did you sleep last night?
-      Less than 5 hours (went to bed very late or woke up too early), 5-6 hours (somewhat insufficient), 7-8 hours (recommended amount), More than 8 hours (extended sleep period)
-      
-      QUESTION: How long did it take you to fall asleep last night?
-      Under 5 minutes (fell asleep almost immediately), 5-15 minutes (dozed off quickly), 15-30 minutes (some difficulty), 30-60 minutes (significant delay), Over 60 minutes (severe difficulty falling asleep)
-      
-      QUESTION: How would you rate the quality of your sleep last night?
-      Excellent (deep, uninterrupted sleep), Good (mostly restful with minimal disturbances), Average (somewhat restful with occasional waking), Poor (restless with frequent waking), Very Poor (barely slept or extremely fragmented)
-      
-      Just provide the questions and detailed options in exactly this format - no introductions or explanations. Make each question specifically about LAST NIGHT's sleep (not general sleep patterns), and make the options detailed with contextual descriptions.`;
-      
-      const aiResponse = await callGeminiAPI(prompt);
-      
-      // Parse the AI response to extract questions and options
-      const sections = aiResponse.split('QUESTION:').filter(section => section.trim() !== '');
-      
-      const parsedQuestions: string[] = [];
-      const parsedOptions: string[][] = [];
-      
-      sections.forEach(section => {
-        // Split each section into lines
-        const lines = section.trim().split('\n');
+      // First line is the question
+      if (lines.length > 0) {
+        parsedQuestions.push(lines[0].trim());
         
-        // First line is the question
-        if (lines.length > 0) {
-          parsedQuestions.push(lines[0].trim());
+        // Remaining lines contain the options
+        if (lines.length > 1) {
+          // Join all remaining lines to get the options text
+          const optionsText = lines.slice(1).join(' ').trim();
           
-          // Remaining lines contain the options
-          if (lines.length > 1) {
-            const optionsText = lines.slice(1).join(' ').trim();
-            const options = optionsText.split(',').map(opt => opt.trim());
-            parsedOptions.push(options);
-          }
+          // Use a regex to split by commas that are NOT inside parentheses
+          // This regex looks for commas that are not inside parentheses
+          const optionsRegex = /,\s*(?![^(]*\))/;
+          const options = optionsText.split(optionsRegex).map(opt => opt.trim());
+          parsedOptions.push(options);
         }
-      });
-      
-      // Fall back to default questions if parsing failed
-      if (parsedQuestions.length < 3 || parsedOptions.length < 3) {
-        setDefaultQuestionsAndOptions();
-      } else {
-        setQuestions(parsedQuestions);
-        setOptions(parsedOptions);
       }
-    } catch (error) {
-      console.error("Error generating questions:", error);
+    });
+    
+    // Fall back to default questions if parsing failed
+    if (parsedQuestions.length < 3 || parsedOptions.length < 3) {
       setDefaultQuestionsAndOptions();
-    } finally {
-      setIsGeneratingQuestions(false);
+    } else {
+      setQuestions(parsedQuestions);
+      setOptions(parsedOptions);
     }
-  };
+  } catch (error) {
+    console.error("Error generating questions:", error);
+    setDefaultQuestionsAndOptions();
+  } finally {
+    setIsGeneratingQuestions(false);
+  }
+};
 
   // Set default questions if AI generation fails
   const setDefaultQuestionsAndOptions = () => {
