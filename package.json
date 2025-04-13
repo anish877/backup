@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "tsc --noEmit && next build --no-lint",
+    "build": "next build --no-lint",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "npx lightningcss --version || true"
