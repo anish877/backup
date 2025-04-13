@@ -5,7 +5,7 @@ import useMessageStore from '@/store/messages';
 import { useParams } from 'next/navigation';
 import useTokenStore from '@/store/token';
 import { customToast } from './CustomToast';
-
+// 
 const ChatComponent: React.FC = () => {
   const { 
     messages, 

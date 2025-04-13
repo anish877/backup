@@ -212,7 +212,7 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
     }, [isAuthenticated]);
 
     useEffect(() => {
-        if (!isDailyLogCompleted && activeNotifications.length > 0 && !showToast) {
+        if (isAuthenticated && !isDailyLogCompleted && activeNotifications.length > 0 && !showToast) {
             setShowToast(true);
             toast((t) => (
                 <div className="w-80 bg-white rounded-lg shadow-lg border border-gray-200">
