@@ -14,7 +14,7 @@ export const nutritionApi = {
   // Get all nutrition logs
   getNutritionLogs: async () => {
     try {
-      const response = await apiClient.get('/nutrition/logs');
+      const response = await apiClient.get('/api/nutrition/logs');
       return response.data;
     } catch (error) {
       console.error('Error fetching nutrition logs:', error);
@@ -25,7 +25,7 @@ export const nutritionApi = {
   // Get specific nutrition log
   getNutritionLog: async (logId: string) => {
     try {
-      const response = await apiClient.get(`/nutrition/logs/${logId}`);
+      const response = await apiClient.get(`/api/nutrition/logs/${logId}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching nutrition log ${logId}:`, error);
@@ -48,7 +48,7 @@ export const nutritionApi = {
     vitamins: number;
   }) => {
     try {
-      const response = await apiClient.post('/nutrition/meal', mealData);
+      const response = await apiClient.post('/api/nutrition/meal', mealData);
       return response.data;
     } catch (error) {
       console.error('Error adding meal:', error);
@@ -59,7 +59,7 @@ export const nutritionApi = {
   // Get nutrition statistics
   getNutritionStats: async (days = 7) => {
     try {
-      const response = await apiClient.get(`/nutrition/stats?days=${days}`);
+      const response = await apiClient.get(`/api/nutrition/stats?days=${days}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching nutrition stats:', error);

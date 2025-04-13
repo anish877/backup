@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import NavBar from '@/components/NavBar';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -34,7 +33,7 @@ const formSchema = z.object({
 });
 
 const GoalSetup = () => {
-  //@ts-expect-error: no need here
+  // @ts-expect-error: no need here
   const { setHealthGoal, setUserProfile, setHealthPlan, completeOnboarding } = useHealthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -57,30 +56,17 @@ const GoalSetup = () => {
     setError(null);
     
     try {
-      // Get user token from localStorage (assuming you store it there after login)
-      const token = localStorage.getItem('userToken');
-      
-      if (!token) {
-        throw new Error('Authentication token not found. Please log in again.');
-      }
-      
-      // Call backend API to set health goal
-      
-const response = await axios.post(
-  `${API_BASE_URL}/health-goal`,
-  values, // This is the body
-  {
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`, // 👈 Optional if using cookie instead
-    },
-    withCredentials: true, // 👈 This allows sending cookies (like jwt stored in cookies)
-  }
-);
-      
-      if (response.status !== 200) {
-        throw new Error('Failed to set health goal');
-      }
+      // Call backend API to set health goal - using cookies for authentication
+      const response = await axios.post(
+        `${API_BASE_URL}/health-goal`,
+        values,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          withCredentials: true, // This ensures cookies are sent with the request
+        }
+      );
       
       const {data} = response;
       
@@ -97,11 +83,12 @@ const response = await axios.post(
       });
       
       // Set health plan from API response
-      setHealthPlan(data.healthPlan);
+      console.log(data)
+      // setHealthPlan(data.healthPlan);
       completeOnboarding();
       
       customToast.success("Your personalized health plan has been generated.");
-      router.push('/dashboard');
+      router.push('/profile');
     } catch (err) {
       console.error('Error setting health goal:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');

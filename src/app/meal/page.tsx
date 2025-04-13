@@ -197,6 +197,8 @@ const NutritionAnalysisDetails = () => {
     return 'bg-red-500';
   };
 
+  
+
   const getNutritionLabel = (score: number): string => {
     if (score >= 85) return "Excellent";
     if (score >= 70) return "Good";

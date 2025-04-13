@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Base URL - adjust this based on your environment configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://healthbackend-kd4p.onrender.com/api';
 
 const nutritionService = {
   // Get all nutrition logs

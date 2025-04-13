@@ -1,7 +1,7 @@
 // src/services/healthInsightsService.ts
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'https://healthbackend-kd4p.onrender.com';
 
 export interface TimeSeriesDataPoint {
   date: string;
