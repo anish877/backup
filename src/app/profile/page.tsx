@@ -686,7 +686,7 @@ const UserProfile = () => {
                         </p>
                         <Button 
                           className="bg-brandOrange hover:bg-brandOrange/90"
-                          onClick={() => router.push('/log')}
+                          onClick={() => router.push('/')}
                         >
                           Create Today's Log
                         </Button>
