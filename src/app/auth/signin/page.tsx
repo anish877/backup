@@ -33,7 +33,7 @@ export default function SignIn() {
 
       if (response.status === 200) {
         customToast.success('Signed in successfully!');
-        router.push('/dashboard'); 
+        router.push('/'); 
       } else if (response.status === 203) {
         customToast.error('User not found!');
       } else if (response.status === 206) {

@@ -33,6 +33,21 @@ export interface UserProfileResponse {
 }
 const API_URL = 'https://healthbackend-kd4p.onrender.com';
 
+// Extended user profile type to match backend data
+interface UserProfile {
+  id: string;
+  username: string;
+  goal: string;
+  dailyLogs: DailyLog[];
+  stats: {
+    avgSleep: number;
+    avgWater: number;
+    avgMood: number;
+    totalExerciseMinutes: number;
+    logsCount: number;
+  };
+}
+
 const formSchema = z.object({
   age: z.coerce.number().min(1, "Age is required"),
   weight: z.coerce.number().min(1, "Weight is required"),
@@ -55,12 +70,13 @@ const UserProfile = () => {
     isOnboarded, 
     dailyLogs, 
     resetHealthData, 
-    setHealthGoal 
+    setHealthGoal,
+    setDailyLogs
   } = useHealthStore();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<UserProfileResponse | null>(null);
+  const [userData, setUserData] = useState<UserProfile | null>(null);
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
   const [error, setError] = useState('');
 
@@ -73,27 +89,33 @@ const UserProfile = () => {
           withCredentials: true, // Important for sending cookies
         });
         
+        // Set complete user data from response
         setUserData(response.data);
         
         // Set today's log if available
         if (response.data.dailyLogs && response.data.dailyLogs.length > 0) {
           setTodayLog(response.data.dailyLogs[0]);
+          
+          // Update store with all logs for consistency
+          setDailyLogs(response.data.dailyLogs);
         }
         
-        // Update store with fetched data
-        if (response.data) {
-          // Update local store with user data
-          updateUserProfile({
-            age: userProfile.age, // Keep existing data
-            weight: userProfile.weight, // Keep existing data
-            gender: userProfile.gender, // Keep existing data
-            activityLevel: userProfile.activityLevel, // Keep existing data
-          });
+        // Update store with user metadata from the log if available
+        if (response.data.dailyLogs && response.data.dailyLogs.length > 0) {
+          const latestLog = response.data.dailyLogs[0];
+          const metadata = {
+            age: latestLog.metadata?.age || userProfile.age,
+            weight: latestLog.metadata?.weight || userProfile.weight,
+            gender: latestLog.metadata?.gender || userProfile.gender,
+            activityLevel: latestLog.metadata?.activityLevel || userProfile.activityLevel,
+          };
           
-          // Set goal from API data if available
-          if (response.data.goal) {
-            setHealthGoal(response.data.goal);
-          }
+          updateUserProfile(metadata);
+        }
+        
+        // Set goal from API data
+        if (response.data.goal) {
+          setHealthGoal(response.data.goal);
         }
         
         setLoading(false);
@@ -102,7 +124,7 @@ const UserProfile = () => {
         setError('Failed to load user data');
         setLoading(false);
         
-        // @ts-expect-error: no need here
+        // Handle unauthorized errors
         if (err.response && (err.response.status === 401 || err.response.status === 403)) {
           customToast.error('Session expired. Please login again.');
           router.push('/login');
@@ -148,7 +170,8 @@ const UserProfile = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Update user profile in API
+      setLoading(true);
+      // Update user profile in API - using the backend endpoint
       const response = await axios.put(`${API_URL}/users/profile`, {
         username: values.username,
         goal: values.goal,
@@ -160,7 +183,7 @@ const UserProfile = () => {
         withCredentials: true
       });
       
-      // Update local store
+      // Update local store with the form values
       updateUserProfile({
         age: Number(values.age),
         weight: Number(values.weight),
@@ -172,35 +195,36 @@ const UserProfile = () => {
         setHealthGoal(values.goal);
       }
       
-      setUserData(response.data);
+      // Refresh the user data after update
+      const updatedUserData = await axios.get(`${API_URL}/users/profile`, {
+        withCredentials: true,
+      });
+      
+      setUserData(updatedUserData.data);
+      
+      // Set today's log if available after refresh
+      if (updatedUserData.data.dailyLogs && updatedUserData.data.dailyLogs.length > 0) {
+        setTodayLog(updatedUserData.data.dailyLogs[0]);
+      }
+      
       customToast.success("Your profile has been successfully updated.");
       setIsEditing(false);
-      
-      // Refresh data to get the updated log
-      window.location.reload();
+      setLoading(false);
     } catch (err) {
       console.error("Error updating profile:", err);
-      customToast.error("Failed to update profile");
+      customToast.error(err.response?.data?.message || "Failed to update profile");
+      setLoading(false);
     }
   };
 
-  // Get the health statistics from user data
-  const stats = userData?.stats || {
-    avgSleep: 0,
-    avgWater: 0,
-    avgMood: 0,
-    totalExerciseMinutes: 0,
-    logsCount: 0
-  };
-
   const handleDeleteAccount = async () => {
-    const confirm = window.confirm("Are you sure you want to delete your account? This action cannot be undone.");
+    const confirm = window.confirm("Are you sure you want to delete your account? This action cannot be undone. All your health data will be permanently deleted.");
     
     if (!confirm) return;
   
     try {
       setLoading(true);
-      // Call delete API here
+      // Call delete API endpoint
       await axios.delete(`${API_URL}/users/profile`, {
         withCredentials: true,
       });
@@ -210,7 +234,7 @@ const UserProfile = () => {
       router.push('/login');
     } catch (error) {
       console.error("Delete account error:", error);
-      customToast.error("Failed to delete account");
+      customToast.error(error.response?.data?.message || "Failed to delete account");
       setLoading(false);
     }
   };
@@ -218,9 +242,13 @@ const UserProfile = () => {
   const handleExportData = () => {
     // Create a downloadable JSON file with the health data
     const exportData = {
-      profile: userProfile,
-      healthGoal,
-      logs: dailyLogs
+      profile: {
+        username: userData?.username,
+        goal: userData?.goal,
+        ...userProfile
+      },
+      healthStats: userData?.stats,
+      logs: userData?.dailyLogs || dailyLogs
     };
     
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -268,9 +296,17 @@ const UserProfile = () => {
     return null; // This will prevent flash before redirect
   }
 
+  // Use statistics from backend if available
+  const stats = userData?.stats || {
+    avgSleep: 0,
+    avgWater: 0,
+    avgMood: 0,
+    totalExerciseMinutes: 0,
+    logsCount: 0
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      
       <div className="container mx-auto px-4 py-6">
         {userData && (
           <div className="mb-6">
@@ -339,6 +375,7 @@ const UserProfile = () => {
                   variant="outline" 
                   className="w-full"
                   onClick={() => setIsEditing(true)}
+                  disabled={loading}
                 >
                   Edit Profile
                 </Button>
@@ -470,11 +507,23 @@ const UserProfile = () => {
                           type="button" 
                           variant="outline" 
                           onClick={() => setIsEditing(false)}
+                          disabled={loading}
                         >
                           Cancel
                         </Button>
-                        <Button type="submit" className="bg-brandOrange hover:bg-brandOrange/90">
-                          Save Changes
+                        <Button 
+                          type="submit" 
+                          className="bg-brandOrange hover:bg-brandOrange/90"
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            "Save Changes"
+                          )}
                         </Button>
                       </div>
                     </form>
@@ -591,113 +640,112 @@ const UserProfile = () => {
                                 <span className="font-bold">{todayLog.nutrition.finalScore}/10</span>
                               </div>
                             </div>
-                            )}
+                          )}
+                        </div>
+                        {/* Display recommendations if available */}
+                        {((todayLog.sleep?.dailyRecommendations?.length > 0) || 
+                          (todayLog.mood?.dailyRecommendations?.length > 0) || 
+                          (todayLog.water?.dailyRecommendations?.length > 0) || 
+                          (todayLog.nutrition?.dailyRecommendations?.length > 0)) && (
+                            <div className="mt-4 bg-white rounded-lg p-4 shadow-sm border">
+                              <h4 className="font-medium text-brandOrange mb-2">Today's Recommendations</h4>
+                              <ul className="space-y-1">
+                                {todayLog.sleep?.dailyRecommendations?.map((rec, idx) => (
+                                  <li key={`sleep-${idx}`} className="text-sm flex gap-2">
+                                    <span className="text-blue-500">•</span>
+                                    <span>{rec}</span>
+                                  </li>
+                                ))}
+                                {todayLog.mood?.dailyRecommendations?.map((rec, idx) => (
+                                  <li key={`mood-${idx}`} className="text-sm flex gap-2">
+                                    <span className="text-yellow-500">•</span>
+                                    <span>{rec}</span>
+                                  </li>
+                                ))}
+                                {todayLog.water?.dailyRecommendations?.map((rec, idx) => (
+                                  <li key={`water-${idx}`} className="text-sm flex gap-2">
+                                    <span className="text-green-500">•</span>
+                                    <span>{rec}</span>
+                                  </li>
+                                ))}
+                                {todayLog.nutrition?.dailyRecommendations?.map((rec, idx) => (
+                                  <li key={`nutrition-${idx}`} className="text-sm flex gap-2">
+                                    <span className="text-red-500">•</span>
+                                    <span>{rec}</span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
-                            {/* @ts-expect-error: no need here */}
-                            {(todayLog.sleep?.dailyRecommndations?.length > 0 || 
-                            // @ts-expect-error: no need here
-                              todayLog.mood?.dailyRecommndations?.length > 0 || 
-                              // @ts-expect-error: no need here
-                              todayLog.water?.dailyRecommndations?.length > 0 || 
-                              // @ts-expect-error: no need here
-                              todayLog.nutrition?.dailyRecommndations?.length > 0) && (
-                                <div className="mt-4 bg-white rounded-lg p-4 shadow-sm border">
-                                  <h4 className="font-medium text-brandOrange mb-2">Today's Recommendations</h4>
-                                  <ul className="space-y-1">
-                                    {todayLog.sleep?.dailyRecommndations?.map((rec, idx) => (
-                                      <li key={`sleep-${idx}`} className="text-sm flex gap-2">
-                                        <span className="text-blue-500">•</span>
-                                        <span>{rec}</span>
-                                      </li>
-                                    ))}
-                                    {todayLog.mood?.dailyRecommndations?.map((rec, idx) => (
-                                      <li key={`mood-${idx}`} className="text-sm flex gap-2">
-                                        <span className="text-yellow-500">•</span>
-                                        <span>{rec}</span>
-                                      </li>
-                                    ))}
-                                    {todayLog.water?.dailyRecommndations?.map((rec, idx) => (
-                                      <li key={`water-${idx}`} className="text-sm flex gap-2">
-                                        <span className="text-green-500">•</span>
-                                        <span>{rec}</span>
-                                      </li>
-                                    ))}
-                                    {todayLog.nutrition?.dailyRecommndations?.map((rec, idx) => (
-                                      <li key={`nutrition-${idx}`} className="text-sm flex gap-2">
-                                        <span className="text-red-500">•</span>
-                                        <span>{rec}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                          </div>
-                        ) : (
-                          <div className="mt-6 bg-white rounded-lg p-6 shadow-sm border text-center">
-                            <h3 className="text-lg font-semibold mb-2">No Log For Today</h3>
-                            <p className="text-gray-600 mb-4">
-                              You haven't created a health log entry for today yet.
-                            </p>
-                            <Button 
-                              className="bg-brandOrange hover:bg-brandOrange/90"
-                              onClick={() => router.push('/log')}
-                            >
-                              Create Today's Log
-                            </Button>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                          )}
+                      </div>
+                    ) : (
+                      <div className="mt-6 bg-white rounded-lg p-6 shadow-sm border text-center">
+                        <h3 className="text-lg font-semibold mb-2">No Log For Today</h3>
+                        <p className="text-gray-600 mb-4">
+                          You haven't created a health log entry for today yet.
+                        </p>
+                        <Button 
+                          className="bg-brandOrange hover:bg-brandOrange/90"
+                          onClick={() => router.push('/log')}
+                        >
+                          Create Today's Log
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Account Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Button 
+                        variant="default" 
+                        className="w-full bg-brandOrange hover:bg-brandOrange/90"
+                        onClick={() => router.push('/goal')}
+                        disabled={loading}
+                      >
+                        Change Health Goal
+                      </Button>
+                    </div>
                     
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Account Settings</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <Button 
-                            variant="default" 
-                            className="w-full bg-brandOrange hover:bg-brandOrange/90"
-                            onClick={() => router.push('/goal')}
-                          >
-                            Change Health Goal
-                          </Button>
-                        </div>
-                        
-                        <div>
-                          <Button 
-                            variant="outline" 
-                            className="w-full"
-                            onClick={handleExportData}
-                          >
-                            Export My Health Data
-                          </Button>
-                        </div>
-                        
-                        <div>
-                          <Button 
-                            variant="outline" 
-                            className="w-full text-red-500 border-red-500 hover:bg-red-50"
-                            onClick={handleDeleteAccount}
-                            disabled={loading}
-                          >
-                            {loading ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 mr-2" />
-                            )}
-                            Delete Account
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-              </div>
-            </div>
+                    <div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={handleExportData}
+                        disabled={loading}
+                      >
+                        Export My Health Data
+                      </Button>
+                    </div>
+                    
+                    <div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full text-red-500 border-red-500 hover:bg-red-50"
+                        onClick={handleDeleteAccount}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-2" />
+                        )}
+                        Delete Account
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         </div>
-      );
-    };
-    
-    export default UserProfile;
+      </div>
+    </div>
+  );
+};
+
+export default UserProfile;

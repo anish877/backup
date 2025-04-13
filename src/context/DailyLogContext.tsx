@@ -113,7 +113,7 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
     ];
 
     const openDailyLogForm = () => {
-        Router.push('/log');
+        Router.push('/');
         setShowToast(false);
     };
 
