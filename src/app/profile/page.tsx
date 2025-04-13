@@ -138,11 +138,11 @@ const UserProfile = () => {
   }, []);
 
   // Redirect to goal setup if not onboarded
-  useEffect(() => {
-    if (!isOnboarded && !loading) {
-      router.push('/goal');
-    }
-  }, [isOnboarded, router, loading]);
+  // useEffect(() => {
+  //   if (!isOnboarded && !loading) {
+  //     router.push('/goal');
+  //   }
+  // }, [isOnboarded, router, loading]);
 
   // Reset form when toggling edit mode
   useEffect(() => {
