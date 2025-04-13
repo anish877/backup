@@ -8,8 +8,55 @@ import { Calendar, Check, Clock, Droplet, Dumbbell, Heart, Brain, AlertCircle, C
 import { useRouter } from 'next/navigation';
 import { useHealthStore } from '@/store/healthStore';
 
+// Define interfaces for the data structures
+interface DailyLog {
+  date: string;
+  mood?: number;
+  sleepHours?: number;
+  waterConsumed?: number;
+  nutrition?: number;
+  stressLevel?: number;
+  exerciseDuration?: number;
+}
+
+interface HealthPlan {
+  waterIntake: string;
+  sleepHours: string;
+  exercise: string;
+  meals: string[];
+  tips: string[];
+}
+
+interface Feedback {
+  date: string;
+  message: string;
+}
+
+interface HealthStoreState {
+  healthGoal: string;
+  healthPlan: HealthPlan | null;
+  dailyLogs: DailyLog[];
+  feedback: Feedback[];
+  isOnboarded: boolean;
+}
+
+interface ChartDataPoint {
+  date: string;
+  mood: number;
+  sleep: number;
+  water: number;
+  nutrition: number;
+  stress: number;
+}
+
+interface HealthBreakdownDataPoint {
+  name: string;
+  value: number;
+  color: string;
+}
+
 const Dashboard = () => {
-  const { healthGoal, healthPlan, dailyLogs, feedback, isOnboarded } = useHealthStore();
+  const { healthGoal, healthPlan, dailyLogs, feedback, isOnboarded } = useHealthStore() as unknown as HealthStoreState;
   const router = useRouter();
 
   // Redirect to goal setup if not onboarded
@@ -24,7 +71,7 @@ const Dashboard = () => {
   const latestFeedback = feedback.length > 0 ? feedback[feedback.length - 1] : null;
 
   // Prepare data for health metrics chart
-  const healthMetricsData = React.useMemo(() => {
+  const healthMetricsData = React.useMemo<ChartDataPoint[]>(() => {
     // Take the last 7 logs or less if there aren't enough
     const last7Logs = dailyLogs.slice(-7);
     
@@ -58,7 +105,7 @@ const Dashboard = () => {
   }, [dailyLogs]);
 
   // Prepare data for health breakdown pie chart
-  const healthBreakdownData = React.useMemo(() => {
+  const healthBreakdownData = React.useMemo<HealthBreakdownDataPoint[]>(() => {
     if (!latestLog) return [];
     
     return [
@@ -95,10 +142,10 @@ const Dashboard = () => {
   }, [latestLog]);
 
   // Generate insights based on the logs
-  const generateInsights = () => {
+  const generateInsights = (): string[] => {
     if (dailyLogs.length < 2) return [];
     
-    const insights = [];
+    const insights: string[] = [];
     const recentLogs = dailyLogs.slice(-7);
     
     // Check sleep patterns
@@ -130,10 +177,10 @@ const Dashboard = () => {
   };
 
   // Get recommendations based on health metrics
-  const getRecommendations = () => {
+  const getRecommendations = (): string[] => {
     if (!latestLog) return [];
     
-    const recommendations = [];
+    const recommendations: string[] = [];
     
     if ((latestLog.nutrition || 0) < 70) {
       recommendations.push("Include more whole foods and reduce processed items in your diet.");
@@ -554,7 +601,7 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-700">
                     <span className="font-medium">Nutrition insight: </span>
                     {dailyLogs.length >= 3 ? 
-                      `Your nutrition scores are ${dailyLogs.slice(-3).every(log => (log.nutrition || 0) > 70) ? 'consistently good' : 'showing room for improvement'}. Focus on ${getRecommendations()[0].toLowerCase()}` : 
+                      `Your nutrition scores are ${dailyLogs.slice(-3).every(log => (log.nutrition || 0) > 70) ? 'consistently good' : 'showing room for improvement'}. Focus on ${getRecommendations()[0]?.toLowerCase() || 'improving your overall nutrition'}` : 
                       "Log at least 3 days of nutrition data to get personalized insights."}
                   </p>
                 </div>
