@@ -1,7 +1,9 @@
 import React from 'react';
 import { MessageSquare, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/router';
 
 const MedicalAIAssistant = () => {
+  const router = useRouter()
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg max-w-md mx-auto border border-blue-100 py-16">
       <div className="flex flex-col items-center text-center mb-8">
@@ -15,7 +17,7 @@ const MedicalAIAssistant = () => {
         Get expert medical guidance instantly
       </div>
       
-      <button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 px-6 rounded-lg font-medium transition-colors flex items-center justify-center">
+      <button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 px-6 rounded-lg font-medium transition-colors flex items-center justify-center" onClick={()=>router.push("/chat")}>
         <span>Start Consultation</span>
         <ArrowRight size={20} className="ml-2" />
       </button>
