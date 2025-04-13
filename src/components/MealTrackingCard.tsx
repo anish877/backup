@@ -432,7 +432,7 @@ OVERALL_SCORE: [score]`;
           score: 70,
           calories: 550,
           analysis: defaultMeal.analysis,
-          recommendations: JSON.stringify(recommendations),
+          recommendations: recommendations,
           protein: 65,
           carbs: 70,
           fats: 65,

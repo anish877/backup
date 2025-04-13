@@ -1,7 +1,7 @@
 // src/services/api.ts
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'https://healthbackend-kd4p.onrender.com';
 
 // Create axios instance with credentials support
 const apiClient = axios.create({
@@ -41,7 +41,7 @@ export const nutritionApi = {
     score: number;
     calories: number;
     analysis: string;
-    recommendations: string;
+    recommendations: string[];
     protein: number;
     carbs: number;
     fats: number;

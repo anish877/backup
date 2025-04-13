@@ -28,7 +28,7 @@ const DailyProgressContainer = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_BACKEND}/daily-progress`,
+        `https://healthbackend-kd4p.onrender.com/daily-progress`,
         { withCredentials: true }
       );
 

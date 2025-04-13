@@ -49,6 +49,7 @@ interface Assessment {
   id: string;
   date: string;
   finalScore: number;
+  score?: number;
   categories?: CategoryData;
   happiness: number;
   energy: number;
@@ -56,11 +57,27 @@ interface Assessment {
   calm: number;
   optimism: number;
   dailyRecommndations?: string[];
-  responses?: Record<number, string>;
+  responses?: Record<string, string>;
   questions?: string[];
   dailyLog?: {
     date: string;
   };
+}
+
+interface ChartDataPoint {
+  date: string;
+  score: number;
+  Happiness: number;
+  Energy: number;
+  Focus: number;
+  Calm: number;
+  Optimism: number;
+}
+
+interface PieDataPoint {
+  name: string;
+  value: number;
+  color: string;
 }
 
 const MoodAnalysisDetails = () => {
@@ -75,7 +92,7 @@ const MoodAnalysisDetails = () => {
     const fetchMoodHistory = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:3001/api/mood/history`,{withCredentials:true});
+        const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/mood/history`,{withCredentials:true});
         
         if (response.data.success) {
           // Transform the data to match the expected format
@@ -128,7 +145,7 @@ const MoodAnalysisDetails = () => {
   const fetchMoodDetails = async (id: string) => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:3001/api/mood/${id}`,{withCredentials:true});
+      const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/mood/${id}`,{withCredentials:true});
       
       if (response.data.success) {
         const moodData = response.data.data;
@@ -205,7 +222,7 @@ const MoodAnalysisDetails = () => {
   };
 
   // Prepare trend data for charts
-  const prepareTrendData = () => {
+  const prepareTrendData = (): ChartDataPoint[] => {
     return assessmentHistory.slice(0, 10).reverse().map(assessment => {
       const date = new Date(assessment.date);
       return {
@@ -221,7 +238,7 @@ const MoodAnalysisDetails = () => {
   };
 
   // Prepare pie data for selected assessment
-  const preparePieData = () => {
+  const preparePieData = (): PieDataPoint[] => {
     if (!selectedAssessment) return [];
     
     // Use either categories object or individual properties
@@ -425,9 +442,7 @@ const MoodAnalysisDetails = () => {
                                       <span className="text-sm text-gray-700">{name}</span>
                                       <span className={`text-sm font-medium ${getCategoryColor(value)}`}>{value}/100</span>
                                     </div>
-                                    <Progress value={value} className="h-2 bg-gray-200">
-                                      <div className={`h-full ${getProgressColor(value)}`} style={{width: `${value}%`}}></div>
-                                    </Progress>
+                                    <Progress value={value} className="h-2 bg-gray-200" />
                                   </div>
                                 ))}
                               </div>
@@ -585,17 +600,21 @@ const MoodAnalysisDetails = () => {
                           
                           {selectedAssessment.questions && selectedAssessment.responses ? (
                             <div className="space-y-4">
-                              {selectedAssessment.questions.map((question, index) => (
-                                <div key={index} className="border border-gray-200 rounded-lg p-4 bg-blue-50/50">
-                                  <h4 className="font-medium text-gray-700 mb-2">Question {index + 1}</h4>
-                                  <p className="text-sm text-gray-600 mb-3">{question}</p>
-                                  <div className="bg-blue-50 p-3 rounded-lg">
-                                    <p className="text-sm text-gray-700">
-                                      {selectedAssessment.responses[index] || "No response provided"}
-                                    </p>
+                              {selectedAssessment.questions.map((question, index) => {
+                                const responseKey = index.toString();
+                                return (
+                                  <div key={index} className="border border-gray-200 rounded-lg p-4 bg-blue-50/50">
+                                    <h4 className="font-medium text-gray-700 mb-2">Question {index + 1}</h4>
+                                    <p className="text-sm text-gray-600 mb-3">{question}</p>
+                                    <div className="bg-blue-50 p-3 rounded-lg">
+                                      <p className="text-sm text-gray-700">
+                                        {/* @ts-expect-error: no need here */}
+                                        {selectedAssessment.responses[responseKey] || "No response provided"}
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           ) : (
                             <div className="text-center p-6 bg-blue-50/50 rounded-lg border border-blue-100">

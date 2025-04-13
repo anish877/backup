@@ -15,8 +15,23 @@ import { useRouter } from 'next/navigation';
 import { useHealthStore, getHealthStats, formatActivityLevel, DailyLog } from '@/store/healthStore';
 import axios from 'axios';
 import { customToast } from '@/components/CustomToast';
+export interface UserStats {
+  avgSleep: number;
+  avgWater: number;
+  avgMood: number;
+  totalExerciseMinutes: number;
+  logsCount: number;
+}
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'http://localhost:3001';
+// Update the API response type for the user profile
+export interface UserProfileResponse {
+  id: string;
+  username: string;
+  goal: string;
+  dailyLogs: DailyLog[];
+  stats: UserStats;
+}
+const API_URL = 'https://healthbackend-kd4p.onrender.com';
 
 // Extended user profile type to match backend data
 interface UserProfile {

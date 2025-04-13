@@ -28,7 +28,7 @@ const HealthImprovementChart = () => {
   useEffect(() => {
     const fetchHealthData = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/health-scores?days=7',{withCredentials:true});
+        const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/health-scores?days=7`,{withCredentials:true});
         if (!response) {
           throw new Error('Failed to fetch health data');
         }
@@ -52,6 +52,7 @@ const HealthImprovementChart = () => {
           }
         }
       } catch (err) {
+        //@ts-expect-error: no need here
         setError(err.message);
       } finally {
         setIsLoading(false);
@@ -78,7 +79,7 @@ const HealthImprovementChart = () => {
     const moodChange = calculateChange('mood');
     return moodChange;
   };
-
+//@ts-expect-error: no need here
   const days = healthData.map(item => item.formattedDate);
   const hours = ['6am', '9am', '12pm', '3pm', '6pm', '9pm']; // Simplified hours for display
 

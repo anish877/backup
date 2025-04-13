@@ -29,7 +29,7 @@ const apiService = {
   // Get latest sleep data
   getLatestSleepData: async () => {
     try {
-      const response = await axios.get('http://localhost:3001'+'/api/sleep',{withCredentials: true});
+      const response = await axios.get('https://healthbackend-kd4p.onrender.com/api/sleep',{withCredentials: true});
       return response.data.sleep && response.data.sleep.length > 0 
         ? response.data.sleep[0] 
         : null;
@@ -42,7 +42,7 @@ const apiService = {
   // Get sleep data for specific date
   getSleepDataByDate: async (date: string) => {
     try {
-      const response = await axios.get('http://localhost:3001'+`/api/sleep?date=${date}`, {withCredentials: true});
+      const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/sleep?date=${date}`, {withCredentials: true});
       return response.data.sleep;
     } catch (error) {
       console.error('Error fetching sleep data by date:', error);
@@ -53,7 +53,7 @@ const apiService = {
   // Save sleep data
   saveSleepData: async (sleepData: any) => {
     try {
-      const response = await axios.post('http://localhost:3001'+'/api/sleep', sleepData, {withCredentials: true});
+      const response = await axios.post('https://healthbackend-kd4p.onrender.com/api/sleep', sleepData, {withCredentials: true});
       return response.data.sleep;
     } catch (error) {
       console.error('Error saving sleep data:', error);

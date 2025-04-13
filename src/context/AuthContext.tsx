@@ -39,9 +39,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const verifyAuth = async () => {
       try {
-        // Create a verify-auth endpoint on your backend
-        const response = await axios.get('http://localhost:3001/verify-auth', {
-            withCredentials: true, // This includes cookies like fetch's `credentials: 'include'`
+
+        const response = await axios.get('https://healthbackend-kd4p.onrender.com/verify-auth', {
+            withCredentials: true,
         });
 
         if (response.status === 200) {
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Logout function
   const logout = async () => {
     try {
-      await fetch('http://localhost:3001/logout', {
+      await fetch('https://healthbackend-kd4p.onrender.com/logout', {
         method: 'POST',
         credentials: 'include',
       });
