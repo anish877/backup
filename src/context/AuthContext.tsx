@@ -40,7 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const verifyAuth = async () => {
       try {
 
-        const response = await axios.get('https://healthbackend-kd4p.onrender.com/verify-auth', {
+        const response = await axios.get('https://healthbackend-production-157d.up.railway.app/verify-auth', {
             withCredentials: true,
         });
 
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Logout function
   const logout = async () => {
     try {
-      await fetch('https://healthbackend-kd4p.onrender.com/logout', {
+      await fetch('https://healthbackend-production-157d.up.railway.app/logout', {
         method: 'POST',
         credentials: 'include',
       });

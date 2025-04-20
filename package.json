@@ -44,7 +44,6 @@
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "^1.2.5",
     "@tailwindcss/oxide": "^4.1.3",
-    "@tailwindcss/oxide-linux-x64-gnu": "^4.1.3",
     "uuid": "^11.1.0",
     "zod": "^3.24.2",
     "zustand": "^5.0.3"

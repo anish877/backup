@@ -31,7 +31,7 @@ export interface UserProfileResponse {
   dailyLogs: DailyLog[];
   stats: UserStats;
 }
-const API_URL = 'https://healthbackend-kd4p.onrender.com';
+const API_URL = 'https://healthbackend-production-157d.up.railway.app';
 
 // Extended user profile type to match backend data
 interface UserProfile {

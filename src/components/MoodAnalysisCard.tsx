@@ -64,7 +64,7 @@ const MoodAnalysisCard = () => {
   const fetchLatestMood = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/mood/latest`,{withCredentials:true});
+      const response = await axios.get(`https://healthbackend-production-157d.up.railway.app/api/mood/latest`,{withCredentials:true});
       const { data } = response.data;
       
       if (data) {
@@ -360,7 +360,7 @@ Optimism: [score]`;
     recommendations: string[]
   ) => {
     try {
-      await axios.post(`https://healthbackend-kd4p.onrender.com/api/mood`, {
+      await axios.post(`https://healthbackend-production-157d.up.railway.app/api/mood`, {
         moodScore: score,
         categories,
         responses,

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'https://healthbackend-kd4p.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND || 'https://healthbackend-production-157d.up.railway.app';
 
 // Types for health data
 export interface NutritionLog {

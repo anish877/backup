@@ -120,7 +120,7 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
     const completeDailyLog = async (logData: DailyLogData) => {
         setIsLoading(true);
         try {
-          await axios.post('https://healthbackend-kd4p.onrender.com/dailLog', logData, {
+          await axios.post('https://healthbackend-production-157d.up.railway.app/dailLog', logData, {
               withCredentials: true
           });
           setIsDailyLogCompleted(true);
@@ -171,7 +171,7 @@ export const DailyLogProvider: React.FC<DailyLogProviderProps> = ({ children }) 
         setIsLoading(true);
         try {
             const response = await axios.get(
-                `https://healthbackend-kd4p.onrender.com/daily-progress`,
+                `https://healthbackend-production-157d.up.railway.app/daily-progress`,
                 {
                     withCredentials: true,
                 }

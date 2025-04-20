@@ -15,7 +15,7 @@ import { customToast } from '@/components/CustomToast';
 import axios from 'axios';
 
 // API base URL
-const API_BASE_URL = 'https://healthbackend-kd4p.onrender.com';
+const API_BASE_URL = 'https://healthbackend-production-157d.up.railway.app';
 
 const formSchema = z.object({
   goal: z.enum(['Lose weight', 'Improve sleep', 'Gain muscle', 'Manage stress'], {

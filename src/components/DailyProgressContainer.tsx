@@ -28,7 +28,7 @@ const DailyProgressContainer = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `https://healthbackend-kd4p.onrender.com/daily-progress`,
+        `https://healthbackend-production-157d.up.railway.app/daily-progress`,
         { withCredentials: true }
       );
 

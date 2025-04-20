@@ -92,7 +92,7 @@ const MoodAnalysisDetails = () => {
     const fetchMoodHistory = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/mood/history`,{withCredentials:true});
+        const response = await axios.get(`https://healthbackend-production-157d.up.railway.app/api/mood/history`,{withCredentials:true});
         
         if (response.data.success) {
           // Transform the data to match the expected format
@@ -145,7 +145,7 @@ const MoodAnalysisDetails = () => {
   const fetchMoodDetails = async (id: string) => {
     try {
       setLoading(true);
-      const response = await axios.get(`https://healthbackend-kd4p.onrender.com/api/mood/${id}`,{withCredentials:true});
+      const response = await axios.get(`https://healthbackend-production-157d.up.railway.app/api/mood/${id}`,{withCredentials:true});
       
       if (response.data.success) {
         const moodData = response.data.data;
